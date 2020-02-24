@@ -1,0 +1,7 @@
+ManifestFileVersion: 0
+CRC: 839064054
+AssetBundleManifest:
+  AssetBundleInfos:
+    Info_0:
+      Name: cvsp_x64.handles
+      Dependencies: {}
