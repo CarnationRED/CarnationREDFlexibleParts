@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<KSPBundleDefinition xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" UrlName="cvsp_x64.handles" Name="cvsp_x64.handles" CreatedTime="-8586190531245867973">
+  <Author />
+  <Info />
+  <Assets>
+    <Asset Name="handles" Path="Assets/CarnationVariablePart/Assetbundles/handles.prefab" Type="GameObject" Url="CarnationVariablePart/Assetbundles/handles" AutoLoad="false" />
+    <Asset Name="end" Path="Assets/Materials/end.mat" Type="Material" Url="Materials/end" AutoLoad="false" />
+    <Asset Name="side" Path="Assets/Materials/side.mat" Type="Material" Url="Materials/side" AutoLoad="false" />
+  </Assets>
+  <Dependencies>
+    <Dependency>cvsp_x64</Dependency>
+  </Dependencies>
+</KSPBundleDefinition>
