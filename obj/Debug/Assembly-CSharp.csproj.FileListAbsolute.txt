@@ -3,8 +3,6 @@ C:\Users\8500G5M\KSPPlugins\KSP181\CarnationVariableSectionPart\Temp\bin\Debug\K
 C:\Users\8500G5M\KSPPlugins\KSP181\CarnationVariableSectionPart\Temp\bin\Debug\Microsoft.CSharp.dll
 C:\Users\8500G5M\KSPPlugins\KSP181\CarnationVariableSectionPart\Temp\bin\Debug\Microsoft.Win32.Primitives.dll
 C:\Users\8500G5M\KSPPlugins\KSP181\CarnationVariableSectionPart\Temp\bin\Debug\netstandard.dll
-C:\Users\8500G5M\KSPPlugins\KSP181\CarnationVariableSectionPart\Temp\bin\Debug\PartTools.dll
-C:\Users\8500G5M\KSPPlugins\KSP181\CarnationVariableSectionPart\Temp\bin\Debug\PartToolsEditor.dll
 C:\Users\8500G5M\KSPPlugins\KSP181\CarnationVariableSectionPart\Temp\bin\Debug\System.AppContext.dll
 C:\Users\8500G5M\KSPPlugins\KSP181\CarnationVariableSectionPart\Temp\bin\Debug\System.Collections.Concurrent.dll
 C:\Users\8500G5M\KSPPlugins\KSP181\CarnationVariableSectionPart\Temp\bin\Debug\System.Collections.dll

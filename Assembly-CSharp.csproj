@@ -385,12 +385,6 @@
     <Reference Include="UnityEngine.XRModule">
       <HintPath>D:/Unity/Editor/Data/Managed/UnityEngine/UnityEngine.XRModule.dll</HintPath>
     </Reference>
-    <Reference Include="PartTools">
-      <HintPath>C:/Users/8500G5M/KSPPlugins/KSP181/CarnationVariableSectionPart/Assets/PartTools/Lib/PartTools.dll</HintPath>
-    </Reference>
-    <Reference Include="PartToolsEditor">
-      <HintPath>C:/Users/8500G5M/KSPPlugins/KSP181/CarnationVariableSectionPart/Assets/PartTools/Lib/PartToolsEditor.dll</HintPath>
-    </Reference>
     <Reference Include="KSPAssetCompiler">
       <HintPath>C:/Users/8500G5M/KSPPlugins/KSP181/CarnationVariableSectionPart/Assets/Plugins/KSPAssets/KSPAssetCompiler.dll</HintPath>
     </Reference>

@@ -1,6 +1,8 @@
-﻿using System;
+﻿using EditorGizmos;
+using System;
 using System.IO;
 using UnityEngine;
+using System.Reflection;
 
 namespace CarnationVariableSectionPart
 {
@@ -231,8 +233,9 @@ namespace CarnationVariableSectionPart
         private bool editing = false;
         private bool startEdit = false;
         private GameObject model;//in-game hierachy: Part(which holds PartModule)->model(dummy node)->$model name$(which holds actual mesh, renderers and colliders)
-        private readonly static float MaxSize = 20f;
+        public readonly static float MaxSize = 20f;
         public static int CVSPEditorLayer;
+        private MeshCollider collider;
 
         public Renderer MeshRender
         {
@@ -257,6 +260,8 @@ namespace CarnationVariableSectionPart
                         model = GetComponentInChildren<MeshFilter>().gameObject;
                     if (model == null)
                         Debug.Log("[CarnationVariableSectionPart] No Mesh Filter found");
+                    else
+                        model.AddComponent<NormalsVisualizer>();
                 }
                 return model;
             }
@@ -269,7 +274,6 @@ namespace CarnationVariableSectionPart
                 if (meshBuilder == null)
                 {
                     meshBuilder = CVSPMeshBuilder.Instance;
-                    meshBuilder.StartBuilding(Mf, this);
                     if (meshBuilder == null) throw new Exception();
                 }
                 return meshBuilder;
@@ -281,10 +285,15 @@ namespace CarnationVariableSectionPart
             get
             {
                 if (mf == null)
+                {
                     mf = Model.GetComponent<MeshFilter>();
+                    Collider = Model.GetComponent<MeshCollider>();
+                }
                 return mf;
             }
         }
+
+        public MeshCollider Collider { get => collider; private set=>collider=value; }
 
         public Texture EndTexture;
         public Texture SideTexture;
@@ -321,13 +330,6 @@ namespace CarnationVariableSectionPart
         public void UpdateGeometry()
         {
             if (MeshBuilder == null) return;
-            if (!PartParamChanged)
-                for (int i = 0; i < CornerRadius.Length; i++)
-                    if (CornerRadius[i] != oldCornerRadius[i])
-                    {
-                        PartParamChanged = true;
-                        break;
-                    }
             if (PartParamChanged)
             {
                 for (int i = 0; i < CornerRadius.Length; i++)
@@ -335,11 +337,26 @@ namespace CarnationVariableSectionPart
                     CornerRadius[i] = Mathf.Clamp(CornerRadius[i], 0, 1f);
                     oldCornerRadius[i] = CornerRadius[i];
                 }
-                MeshBuilder.Update();
+                Section0Radius.x = CornerRadius[0];
+                Section0Radius.y = CornerRadius[1];
+                Section0Radius.z = CornerRadius[2];
+                Section0Radius.w = CornerRadius[3];
+                Section1Radius.x = CornerRadius[4];
+                Section1Radius.y = CornerRadius[5];
+                Section1Radius.z = CornerRadius[6];
+                Section1Radius.w = CornerRadius[7];
+                SectionSizes.x = Section0Width;
+                SectionSizes.y = Section0Height;
+                SectionSizes.z = Section1Width;
+                SectionSizes.w = Section1Height;
+
                 Secttion1Transform.localRotation = Quaternion.Euler(-Twist, 180f, 0);
-                Secttion1Transform.localPosition = Secttion1Transform.localRotation * new Vector3(Length, Raise, -Run);
-                Secttion0Transform.localPosition = Vector3.zero;
+                Secttion1Transform.localPosition = Secttion1Transform.localRotation * new Vector3(Length / 2, Raise, -Run);
+                Secttion0Transform.localPosition = Vector3.right * Length / 2;
                 Secttion0Transform.localRotation = Quaternion.identity;
+                MeshBuilder.Update();
+                Collider.sharedMesh = null;
+                Collider.sharedMesh = mf.mesh;
                 PartParamChanged = false;
             }
         }
@@ -358,8 +375,15 @@ namespace CarnationVariableSectionPart
             if (HighLogic.LoadedSceneIsEditor)
             {
                 GameEvents.onEditorPartEvent.Add(OnPartEvent);
+                GameEvents.OnAppFocus.Add(OnAppFocus);
             }
         }
+
+        private void OnAppFocus(bool data)
+        {
+            CVSPEditorTool.Instance.Deactivate();
+        }
+
         void LoadPart()
         {
             CornerRadius[0] = Section0Radius.x;
@@ -377,24 +401,38 @@ namespace CarnationVariableSectionPart
             LoadTexture();
             UpdateMaterials();
             SetupSectionNodes();
+            MeshBuilder.StartBuilding(Mf, this);
             UpdateGeometry();
+            MeshBuilder.FinishBuilding(this);
+        }
+        public override void OnSave(ConfigNode node)
+        {
+            //  Section0Radius.x = CornerRadius[0];
+            //  Section0Radius.y = CornerRadius[1];
+            //  Section0Radius.z = CornerRadius[2];
+            //  Section0Radius.w = CornerRadius[3];
+            //  Section1Radius.x = CornerRadius[4];
+            //  Section1Radius.y = CornerRadius[5];
+            //  Section1Radius.z = CornerRadius[6];
+            //  Section1Radius.w = CornerRadius[7];
+            //  SectionSizes.x = Section0Width;
+            //  SectionSizes.y = Section0Height;
+            //  SectionSizes.z = Section1Width;
+            //  SectionSizes.w = Section1Height;
+
+            base.OnSave(node);
         }
         private void OnDestroy()
         {
             CVSPEditorTool.OnPartDestroyed();
             //throws exception when game killed
             Debug.Log("[CarnationVariableSectionPart] Part Module Destroyed!!!!!!!");
+            GameEvents.OnAppFocus.Remove(OnAppFocus);
             GameEvents.onEditorPartEvent.Remove(OnPartEvent);
         }
         private void OnPartEvent(ConstructionEventType type, Part p)
         {
-            if (p.persistentId == part.persistentId)
-            {
-                if (type == ConstructionEventType.PartDetached || type == ConstructionEventType.PartPicked)
-                {
-                    CVSPEditorTool.Instance.Deactivate();
-                }
-            }
+            CVSPEditorTool.Instance.Deactivate();
         }
         private void LoadTexture()
         {
@@ -425,6 +463,13 @@ namespace CarnationVariableSectionPart
             {
                 if (editing)
                 {
+                    if (!PartParamChanged)
+                        for (int i = 0; i < CornerRadius.Length; i++)
+                            if (CornerRadius[i] != oldCornerRadius[i])
+                            {
+                                PartParamChanged = true;
+                                break;
+                            }
                     if (PartParamChanged || startEdit)
                     {
                         UpdateMaterials();
@@ -458,8 +503,9 @@ namespace CarnationVariableSectionPart
         {
             editing = true;
             startEdit = true;
-            Secttion0Transform.localPosition = Vector3.zero;
-            Secttion1Transform.localPosition = Vector3.zero;
+            MeshBuilder.StartBuilding(mf, this);
+            //Secttion0Transform.localPosition = Vector3.zero;
+            //Secttion1Transform.localPosition = Vector3.zero;
         }
         private void UpdateMaterials()
         {
@@ -467,8 +513,8 @@ namespace CarnationVariableSectionPart
             {
                 if (MeshRender.sharedMaterials.Length != 2)
                     MeshRender.sharedMaterials = new Material[2]{
-                    new Material(CVSPEditorTool.BumpedShader){ color=new Color(.5f,.5f,.5f)},
-                    new Material(CVSPEditorTool.BumpedShader){ color=new Color(.5f,.5f,.5f)} };
+                    new Material(CVSPEditorTool.BumpedShader){ color=new Color(.75f,.75f,.75f)},
+                    new Material(CVSPEditorTool.BumpedShader){ color=new Color(.75f,.75f,.75f)} };
                 if (UseEndTexture)
                 {
                     if (MeshRender.sharedMaterials[0].mainTexture == null)
@@ -565,7 +611,7 @@ namespace CarnationVariableSectionPart
             public int subtreeH, lvl;
             public Node parent;
             public bool drawed;
-            static Texture2D bg = new Texture2D(4, 4);
+            static Texture2D bg = new Texture2D(2, 2);
             public static GUIStyle wrap;
             static Node()
             {

@@ -138,6 +138,9 @@ namespace CarnationVariableSectionPart
 
         private ModuleCarnationVariablePart cvsp;
         private bool buildStarted = false;
+        public static bool RecalcNorm;
+        private Quaternion qSection1Rotation;
+        private Quaternion qSection1InverseRotation;
         public static readonly int section0Center = 29;
         public static readonly int section1Center = 0;
 
@@ -146,7 +149,7 @@ namespace CarnationVariableSectionPart
         {
             if (cvsp != variablePart)
                 Debug.LogError("[CarnationVariableSectionPart] CVSP build process is interrupted!");
-            if(!buildStarted)
+            if (!buildStarted)
                 Debug.LogError("[CarnationVariableSectionPart] There's no build process to end!");
             buildStarted = false;
         }
@@ -321,12 +324,12 @@ namespace CarnationVariableSectionPart
         /// </summary>
         private void ModifySections()
         {
-            Quaternion q = Quaternion.AngleAxis(cvsp.Twist, Vector3.right);
-            sectionVerts[section0Center].x = 0;
-            sectionVerts[section1Center].x = cvsp.Length;
-            sectionVerts[section1Center].z = -cvsp.Run;
-            sectionVerts[section1Center].y = cvsp.Raise;
-            sectionVerts[section1Center] = cvsp.Secttion1Transform.localRotation * sectionVerts[section1Center];
+            sectionVerts[section0Center] = cvsp.Secttion0Transform.localPosition;
+            sectionVerts[section1Center] = cvsp.Secttion1Transform.localPosition;
+            // sectionVerts[section1Center].x = cvsp.Secttion1Transform.localPosition.x;
+            // sectionVerts[section1Center].z = -cvsp.Run;
+            // sectionVerts[section1Center].y = cvsp.Raise;
+            // sectionVerts[section1Center] = cvsp.Secttion1Transform.localRotation * sectionVerts[section1Center];
             for (int i = 0; i < 8; i++)
             {
                 for (int j = 0; j < sectionCorners[0].Length; j++)
@@ -340,10 +343,10 @@ namespace CarnationVariableSectionPart
                         v1.z += cvsp.Run;
                         v1.y += cvsp.Raise;
                     }
-                    v1.x = (i < 4 ? 0 : -1) * cvsp.Length;
+                    v1.x = i < 4 ? cvsp.Secttion0Transform.localPosition.x : cvsp.Secttion1Transform.localPosition.x;
                     sectionVerts[sectionCorners[i][j]] = v1;
                 }
-                //缩放截面上中点
+                //缩放截面上边线中点
                 var v = VectorCopy(originMidpoints[i]);
                 v.z *= (i < 4 ? cvsp.Section0Width : cvsp.Section1Width) / 2f;
                 v.y *= (i < 4 ? cvsp.Section0Height : cvsp.Section1Height) / 2f;
@@ -352,9 +355,9 @@ namespace CarnationVariableSectionPart
                     v.z += cvsp.Run;
                     v.y += cvsp.Raise;
                 }
-                v.x = (i < 4 ? 0 : -1) * cvsp.Length;
+                v.x = i < 4 ? cvsp.Secttion0Transform.localPosition.x : cvsp.Secttion1Transform.localPosition.x;
                 if (i >= 4)
-                    v = q * v;
+                    v = qSection1Rotation * v;
                 midpoints[i] = v;
             }
             for (int i = 0; i < 8; i++)
@@ -363,9 +366,9 @@ namespace CarnationVariableSectionPart
                     for (int j = 0; j < sectionCorners[4].Length; j++)
                     {
                         //旋转截面1
-                        sectionVerts[sectionCorners[i][j]] = q * sectionVerts[sectionCorners[i][j]];
+                        sectionVerts[sectionCorners[i][j]] = qSection1Rotation * sectionVerts[sectionCorners[i][j]];
                     }
-                //旋转截面1中点的
+                //计算中点的法线
                 Vector3 v1, v2;
                 if (i >= 4)
                 {
@@ -378,6 +381,7 @@ namespace CarnationVariableSectionPart
                     v2 = midpoints[i + 4] - midpoints[i];
                 }
                 midpointNorms[i] = Vector3.Cross(v2, v1);
+                if (i >= 4) midpointNorms[i] = qSection1Rotation * midpointNorms[i];
             }
 
         }
@@ -434,6 +438,12 @@ namespace CarnationVariableSectionPart
                         z = sectionVerts[corner[j]].z;
                         y = sectionVerts[corner[j]].y;
                     }
+                    if (i > 3)
+                    {
+                        var v = qSection1InverseRotation * new Vector3(0, y, z);
+                        y = v.y;
+                        z = v.z;
+                    }
                     if (!cvsp.SectionTiledMapping)
                     {
                         if (i < 4)
@@ -445,21 +455,21 @@ namespace CarnationVariableSectionPart
                             }
                             else
                             {
-                                z /= cvsp.Section0Width / 2f;
                                 y /= cvsp.Section0Height / 2f;
+                                z /= cvsp.Section0Width / 2f;
                             }
                         }
                         else
                         {
-                            if (widthGreater0)
+                            if (widthGreater1)
                             {
                                 y /= cvsp.Section1Height / 2f;
                                 z /= cvsp.Section1Width / 2f;
                             }
                             else
                             {
-                                z /= cvsp.Section1Height / 2f;
-                                y /= cvsp.Section1Width / 2f;
+                                y /= cvsp.Section1Height / 2f;
+                                z /= cvsp.Section1Width / 2f;
                             }
                         }
                     }
@@ -543,7 +553,9 @@ namespace CarnationVariableSectionPart
             for (int i = 0; i < sub.Length; i++)
                 sub[i] = optimizedTris[i + optimizedInSub0];
             mesh.SetTriangles(sub, 1);
-            mesh.RecalculateTangents();
+            mesh.RecalculateBounds();
+            if (RecalcNorm) mesh.RecalculateNormals();
+            //   mesh.RecalculateTangents();
             //Debug.Log("Tris:" + triangles.Length / 3 + "\tAfter:" + optimizedTris.Length / 3);
             //Debug.Log("Verts:" + vertices.Length + "\tAfter:" + optimizedVerts.Length);
         }
@@ -577,6 +589,8 @@ namespace CarnationVariableSectionPart
         }
         public void Update()
         {
+            qSection1Rotation = Quaternion.AngleAxis(cvsp.Twist, Vector3.right);
+            qSection1InverseRotation = Quaternion.Inverse(qSection1Rotation);
             for (int i = 0; i < RoundRadius.Length; i++) BuildSection(i, RoundRadius[i]);
             for (int i = 0; i < RoundRadius.Length; i++) oldRoundRadius[i] = RoundRadius[i];
             OptimizeSections();
