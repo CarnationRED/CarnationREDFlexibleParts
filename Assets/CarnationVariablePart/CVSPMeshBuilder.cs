@@ -6,65 +6,123 @@ namespace CarnationVariableSectionPart
 {
     public partial class CVSPMeshBuilder
     {
-        private static readonly Vector3[] originSectionVerts = { new Vector3(-1.0f, 0.0f, 0.0f), new Vector3(-1.0f, -1.0f, -0.6666666f), new Vector3(-1.0f, -1.0f, -0.3333333f), new Vector3(-1.0f, -1.0f, -0.1f), new Vector3(-1.0f, -1.0f, -1.0f), new Vector3(-1.0f, -1.0f, 0.1f), new Vector3(-1.0f, -0.6666666f, -1.0f), new Vector3(-1.0f, -1.0f, 0.3333333f), new Vector3(-1.0f, -0.3333333f, -1.0f), new Vector3(-1.0f, -1.0f, 0.6666666f), new Vector3(-1.0f, -0.1f, -1.0f), new Vector3(-1.0f, -1.0f, 1.0f), new Vector3(-1.0f, 0.1f, -1.0f), new Vector3(-1.0f, -0.6666666f, 1.0f), new Vector3(-1.0f, 0.3333333f, -1.0f), new Vector3(-1.0f, -0.3333333f, 1.0f), new Vector3(-1.0f, 0.6666666f, -1.0f), new Vector3(-1.0f, -0.1f, 1.0f), new Vector3(-1.0f, 1.0f, -1.0f), new Vector3(-1.0f, 0.1f, 1.0f), new Vector3(-1.0f, 1.0f, -0.6666666f), new Vector3(-1.0f, 0.3333333f, 1.0f), new Vector3(-1.0f, 1.0f, -0.3333333f), new Vector3(-1.0f, 0.6666666f, 1.0f), new Vector3(-1.0f, 1.0f, -0.1f), new Vector3(-1.0f, 1.0f, 1.0f), new Vector3(-1.0f, 1.0f, 0.1f), new Vector3(-1.0f, 1.0f, 0.6666666f), new Vector3(-1.0f, 1.0f, 0.3333333f), new Vector3(1.0f, 0.0f, 0.0f), new Vector3(1.0f, -1.0f, 0.6666666f), new Vector3(1.0f, -1.0f, 0.3333333f), new Vector3(1.0f, -1.0f, 0.1f), new Vector3(1.0f, -1.0f, 1.0f), new Vector3(1.0f, -1.0f, -0.1f), new Vector3(1.0f, -0.6666666f, 1.0f), new Vector3(1.0f, -1.0f, -0.3333333f), new Vector3(1.0f, -0.3333333f, 1.0f), new Vector3(1.0f, -1.0f, -0.6666666f), new Vector3(1.0f, -0.1f, 1.0f), new Vector3(1.0f, -1.0f, -1.0f), new Vector3(1.0f, 0.1f, 1.0f), new Vector3(1.0f, -0.6666666f, -1.0f), new Vector3(1.0f, 0.3333333f, 1.0f), new Vector3(1.0f, -0.3333333f, -1.0f), new Vector3(1.0f, 0.6666666f, 1.0f), new Vector3(1.0f, -0.1f, -1.0f), new Vector3(1.0f, 1.0f, 1.0f), new Vector3(1.0f, 0.1f, -1.0f), new Vector3(1.0f, 1.0f, 0.6666666f), new Vector3(1.0f, 0.3333333f, -1.0f), new Vector3(1.0f, 1.0f, 0.3333333f), new Vector3(1.0f, 0.6666666f, -1.0f), new Vector3(1.0f, 1.0f, 0.1f), new Vector3(1.0f, 1.0f, -1.0f), new Vector3(1.0f, 1.0f, -0.1f), new Vector3(1.0f, 1.0f, -0.6666666f), new Vector3(1.0f, 1.0f, -0.3333333f) };
+        private static readonly Vector3[] originSectionVerts = {
+  new Vector3(   0.0f       , -1.0f      ,    0.0f       ),
+  new Vector3(   0.6666666f , -1.0f      ,    -1.0f      ),
+  new Vector3(   0.3333333f , -1.0f      ,    -1.0f      ),
+  new Vector3(   0.1f       , -1.0f      ,    -1.0f      ),
+  new Vector3(   1.0f       , -1.0f      ,    -1.0f      ),
+  new Vector3(   -0.1f      , -1.0f      ,    -1.0f      ),
+  new Vector3(   1.0f       , -1.0f      ,    -0.6666666f),
+  new Vector3(   -0.3333333f, -1.0f      ,    -1.0f      ),
+  new Vector3(   1.0f       , -1.0f      ,    -0.3333333f),
+  new Vector3(   -0.6666666f, -1.0f      ,    -1.0f      ),
+  new Vector3(   1.0f       , -1.0f      ,    -0.1f      ),
+  new Vector3(  -1.0f       , -1.0f      ,    -1.0f      ),
+  new Vector3(  1.0f        , -1.0f      ,    0.1f       ),
+  new Vector3(  -1.0f       , -1.0f      ,    -0.6666666f),
+  new Vector3(  1.0f        , -1.0f      ,    0.3333333f ),
+  new Vector3(  -1.0f       , -1.0f      ,    -0.3333333f),
+  new Vector3(  1.0f        , -1.0f      ,    0.6666666f ),
+  new Vector3(  -1.0f       , -1.0f      ,    -0.1f      ),
+  new Vector3(  1.0f        , -1.0f      ,    1.0f       ),
+  new Vector3( -1.0f        , -1.0f      ,    0.1f       ),
+  new Vector3(  0.6666666f  , -1.0f      ,    1.0f       ),
+  new Vector3(       -1.0f  , -1.0f      ,    0.3333333f ),
+  new Vector3(  0.3333333f  , -1.0f      ,    1.0f       ),
+  new Vector3(       -1.0f  , -1.0f      ,    0.6666666f ),
+  new Vector3(  0.1f        , -1.0f      ,    1.0f       ),
+  new Vector3( -1.0f        , -1.0f      ,    1.0f       ),
+  new Vector3(  -0.1f       , -1.0f      ,    1.0f       ),
+  new Vector3(  -0.6666666f , -1.0f      ,    1.0f       ),
+  new Vector3(  -0.3333333f , -1.0f      ,    1.0f       ),
+  new Vector3( -0.0f        ,  1.0f      ,    0.0f       ),
+  new Vector3(  -0.6666666f ,  1.0f      ,    -1.0f      ),
+  new Vector3(  -0.3333333f ,  1.0f      ,    -1.0f      ),
+  new Vector3(  -0.1f       ,  1.0f      ,    -1.0f      ),
+  new Vector3( -1.0f        ,  1.0f      ,    -1.0f      ),
+  new Vector3(  0.1f        ,  1.0f      ,    -1.0f      ),
+  new Vector3(       -1.0f  ,  1.0f      ,    -0.6666666f),
+  new Vector3(  0.3333333f  ,  1.0f      ,    -1.0f      ),
+  new Vector3(       -1.0f  ,  1.0f      ,    -0.3333333f),
+  new Vector3(  0.6666666f  ,  1.0f      ,    -1.0f      ),
+  new Vector3( -1.0f        ,  1.0f      ,    -0.1f      ),
+  new Vector3(  1.0f        ,  1.0f      ,    -1.0f      ),
+  new Vector3(-1.0f         ,  1.0f      ,    0.1f       ),
+  new Vector3(        1.0f  ,  1.0f      ,    -0.6666666f),
+  new Vector3(      -1.0f   ,  1.0f      ,    0.3333333f ),
+  new Vector3(        1.0f  ,  1.0f      ,    -0.3333333f),
+  new Vector3(      -1.0f   ,  1.0f      ,    0.6666666f ),
+  new Vector3(  1.0f        ,  1.0f      ,    -0.1f      ),
+  new Vector3(-1.0f         ,  1.0f      ,    1.0f       ),
+  new Vector3( 1.0f         ,  1.0f      ,    0.1f       ),
+  new Vector3( -0.6666666f  ,  1.0f      ,    1.0f       ),
+  new Vector3(       1.0f   ,  1.0f      ,    0.3333333f ),
+  new Vector3( -0.3333333f  ,  1.0f      ,    1.0f       ),
+  new Vector3(       1.0f   ,  1.0f      ,    0.6666666f ),
+  new Vector3( -0.1f        ,  1.0f      ,    1.0f       ),
+  new Vector3( 1.0f         ,  1.0f      ,    1.0f       ),
+  new Vector3( 0.1f         ,  1.0f      ,    1.0f       ),
+  new Vector3( 0.6666666f   ,  1.0f      ,    1.0f       ),
+  new Vector3( 0.3333333f   ,  1.0f      ,    1.0f       )};
         private static readonly Vector2[] originSectionUV = { new Vector2(0.5f, 0.5f), new Vector2(0.833265f, 0f), new Vector2(0.666666f, 0f), new Vector2(0.55f, 0.0f), new Vector2(1f, 0f), new Vector2(0.45f, 0.0f), new Vector2(1f, 0.166734f), new Vector2(0.333333f, 0.0f), new Vector2(1f, 0.333333f), new Vector2(0.166735f, 0f), new Vector2(1f, 0.45f), new Vector2(0.0f, 0f), new Vector2(1f, 0.55f), new Vector2(0.0f, 0.166734f), new Vector2(1f, 0.666666f), new Vector2(0.0f, 0.333333f), new Vector2(1f, 0.833266f), new Vector2(0f, 0.45f), new Vector2(1f, 1f), new Vector2(0f, 0.55f), new Vector2(0.833266f, 1f), new Vector2(0f, 0.666666f), new Vector2(0.666666f, 1f), new Vector2(0f, 0.833266f), new Vector2(0.55f, 1f), new Vector2(0f, 1f), new Vector2(0.45f, 1f), new Vector2(0.166734f, 1f), new Vector2(0.333333f, 1f), new Vector2(0.5f, 0.5f), new Vector2(0.833265f, 0f), new Vector2(0.666666f, 0.0f), new Vector2(0.55f, 0.0f), new Vector2(1f, 0f), new Vector2(0.45f, 0.0f), new Vector2(1f, 0.166734f), new Vector2(0.333333f, 0.0f), new Vector2(1f, 0.333333f), new Vector2(0.166735f, 0f), new Vector2(1f, 0.45f), new Vector2(0.0f, 0f), new Vector2(1f, 0.55f), new Vector2(0.0f, 0.166734f), new Vector2(1f, 0.666666f), new Vector2(0.0f, 0.333333f), new Vector2(1f, 0.833266f), new Vector2(0f, 0.45f), new Vector2(1f, 1f), new Vector2(0f, 0.55f), new Vector2(0.833266f, 1f), new Vector2(0f, 0.666666f), new Vector2(0.666666f, 1f), new Vector2(0f, 0.833266f), new Vector2(0.55f, 1f), new Vector2(0f, 1f), new Vector2(0.45f, 1f), new Vector2(0.166734f, 1f), new Vector2(0.333333f, 1f) };
         private static readonly int[] originSectionTris = new int[] {
-                0,1,2,
-                0,2,3,
-                4,1,0,
-                3,5,0,
-                0,6,4,
-                0,5,7,
-                0,8,6,
-                0,7,9,
-                0,10,8,
-                0,9,11,
-                0,12,10,
-                13,0,11,
-                0,14,12,
-                15,0,13,
-                0,16,14,
-                17,0,15,
-                18,16,0,
-                17,19,0,
-                20,18,0,
-                21,0,19,
-                22,20,0,
-                23,0,21,
-                24,22,0,
-                25,0,23,
-                0,26,24,
-                0,25,27,
-                28,26,0,
-                27,28,0,
-                29,30,31,
-                29,31,32,
-                33,30,29,
-                32,34,29,
-                29,35,33,
-                29,34,36,
-                29,37,35,
-                29,36,38,
-                29,39,37,
-                29,38,40,
-                29,41,39,
-                42,29,40,
-                29,43,41,
-                44,29,42,
-                29,45,43,
-                46,29,44,
-                47,45,29,
-                46,48,29,
-                49,47,29,
-                50,29,48,
-                51,49,29,
-                52,29,50,
-                53,51,29,
-                54,29,52,
-                29,55,53,
-                29,54,56,
-                57,55,29,
-                56,57,29};
+      1 ,0 ,2 ,
+      2 ,0 ,3 ,
+      1 ,4 ,0 ,
+      5 ,3 ,0 ,
+      6 ,0 ,4 ,
+      5 ,0 ,7 ,
+      8 ,0 ,6 ,
+      7 ,0 ,9 ,
+      10,0 ,8 ,
+      9 ,0 ,11,
+      12,0 ,10,
+      0 ,13,11,
+      14,0 ,12,
+      0 ,15,13,
+      16,0 ,14,
+      0 ,17,15,
+      16,18,0 ,
+      19,17,0 ,
+      18,20,0 ,
+      0 ,21,19,
+      20,22,0 ,
+      0 ,23,21,
+      22,24,0 ,
+      0 ,25,23,
+      26,0 ,24,
+      25,0 ,27,
+      26,28,0 ,
+      28,27,0 ,
+      30,29,31,
+      31,29,32,
+      30,33,29,
+      34,32,29,
+      35,29,33,
+      34,29,36,
+      37,29,35,
+      36,29,38,
+      39,29,37,
+      38,29,40,
+      41,29,39,
+      29,42,40,
+      43,29,41,
+      29,44,42,
+      45,29,43,
+      29,46,44,
+      45,47,29,
+      48,46,29,
+      47,49,29,
+      29,50,48,
+      49,51,29,
+      29,52,50,
+      51,53,29,
+      29,54,52,
+      55,29,53,
+      54,29,56,
+      55,57,29,
+      57,56,29};
 
         /// <summary>
         /// 前后截面上的8个角对应的点id，8个角以边线中部 分界
@@ -79,35 +137,41 @@ namespace CarnationVariableSectionPart
         /// 中点上的法线！
         /// </summary>
         private Vector3[] midpointNorms = originMidpointNorms.Clone() as Vector3[];
-        private static readonly Vector3[] originMidpoints = {  new Vector3(1, 0, 1),new Vector3(1,1,0), new Vector3(1, 0, -1), new Vector3(1, -1, 0),
-                                    new Vector3(-1, 0, 1), new Vector3(-1,1,0), new Vector3(-1, 0, -1), new Vector3(-1, -1, 0)};
+        private static readonly Vector3[] originMidpoints = {
+  new Vector3(-1,  1,  0  ),
+  new Vector3( 0,  1,  1  ),
+  new Vector3( 1,  1,  0  ),
+  new Vector3( 0,  1, -1  ),
+  new Vector3(-1, -1,  0  ),
+  new Vector3( 0, -1,  1  ),
+  new Vector3( 1, -1,  0  ),
+  new Vector3( 0, -1, -1  )};
 
-        private static readonly Vector3[] originMidpointNorms = {  new Vector3(0, 0, 1),new Vector3(0,1,0), new Vector3(0, 0, -1), new Vector3(0, -1, 0),
-                                    new Vector3(0, 0, 1), new Vector3(0,1,0), new Vector3(0, 0, -1), new Vector3(0, -1, 0)};
-        private int[][] sectionVertLoop ={new int[]{
-                                                47,49,51,53,55,57,56,54,
-                                                54,52,50,48,46,44,42,40,40,38,36,34,32,31,30,33,
-                                                33,35,37,39,41,43,45,47},
-                                     new int[]{  25,27,28,26,24,22,20,18,
-                                                18,16,14,12,10, 8, 6, 4,4, 1, 2, 3, 5, 7, 9,11,
-                                                11,13,15,17,19,21,23,25
-                                                }};
+        private static readonly Vector3[] originMidpointNorms = {
+  new Vector3(  1, 0,  0),
+  new Vector3(  0, 0, -1),
+  new Vector3( -1, 0,  0),
+  new Vector3(  0, 0,  1),
+  new Vector3(  1, 0,  0),
+  new Vector3(  0, 0, -1),
+  new Vector3( -1, 0,  0),
+  new Vector3(  0, 0,  1)};
         /// <summary>
-        /// 每个角相对于第一象限旋转的角度
+        /// 每个圆角相对于第一象限内的roundCorner绕Y轴旋转的角度
         /// </summary>
-        private int[] sectionCornersRotation = { 0, 90, 180, 270, 0, 90, 180, 270 };
+        private int[] sectionCornersRotation = { 270, 0, 90, 180, 270, 0, 90, 180 };
 
         /// <summary>
-        /// 极坐标单位圆上+0°~+90°对应点的直角坐标
+        /// 极坐标单位圆上+90°~+0°对应点的直角坐标
         /// </summary>
         private static Vector2[] roundCorner = {
-        new Vector2(1f, 0f),
-        new Vector2(0.9659258f, 0.2588190f),
-        new Vector2(0.8660254f, 0.5f),
-        new Vector2(0.7071067f, 0.7071067f),
-        new Vector2(0.5f, 0.8660254f),
+        new Vector2(0f, 1f),
         new Vector2(0.2588190f, 0.9659258f),
-        new Vector2(0f, 1f) };
+        new Vector2(0.5f, 0.8660254f),
+        new Vector2(0.7071067f, 0.7071067f),
+        new Vector2(0.8660254f, 0.5f),
+        new Vector2(0.9659258f, 0.2588190f),
+        new Vector2(1f, 0f)};
         private static float perimeterRound = 1.566314f;
 
         private static float perimeterSharp = 2f;
@@ -192,7 +256,6 @@ namespace CarnationVariableSectionPart
             temp.Clear();
 
             sectionMesh = new Mesh();
-
         }
 
         private void InstantiateMesh()
@@ -263,45 +326,45 @@ namespace CarnationVariableSectionPart
             {
                 for (int i = 0; i < corner.Length; i++)
                 {
+                    sectionVerts[corner[i]].x = originSectionVerts[corner[i]].x;
                     sectionVerts[corner[i]].z = originSectionVerts[corner[i]].z;
-                    sectionVerts[corner[i]].y = originSectionVerts[corner[i]].y;
                 }
                 return;
             }
             //旋转矩阵
-            float xx, xy, yy, yx;
+            float xx, xz, zz, zx;
             switch (sectionCornersRotation[cornerID])
             {
                 case 90:
                     xx = 0;
-                    xy = 1;
-                    yy = 0;
-                    yx = -1;
+                    xz = -1;
+                    zz = 0;
+                    zx = 1;
                     break;
                 case 180:
                     xx = -1;
-                    xy = 0;
-                    yy = -1;
-                    yx = 0;
+                    xz = 0;
+                    zz = -1;
+                    zx = 0;
                     break;
                 case 270:
                     xx = 0;
-                    xy = -1;
-                    yy = 0;
-                    yx = 1;
+                    xz = 1;
+                    zz = 0;
+                    zx = -1;
                     break;
                 default:    //0
                     xx = 1;
-                    xy = 0;
-                    yy = 1;
-                    yx = 0;
+                    xz = 0;
+                    zz = 1;
+                    zx = 0;
                     break;
             }
-            Vector2 center = new Vector2(xx + yx, xy + yy) * (1 - radiusNormalized);
+            Vector2 center = new Vector2(xx + zx, xz + zz) * (1 - radiusNormalized);
             for (int i = 0; i < corner.Length; i++)
             {
-                sectionVerts[corner[i]].z = center.x + radiusNormalized * (roundCorner[i].x * xx + roundCorner[i].y * yx);
-                sectionVerts[corner[i]].y = center.y + radiusNormalized * (roundCorner[i].x * xy + roundCorner[i].y * yy);
+                sectionVerts[corner[i]].x = center.x + radiusNormalized * (roundCorner[i].x * xx + roundCorner[i].y * zx);
+                sectionVerts[corner[i]].z = center.y + radiusNormalized * (roundCorner[i].x * xz + roundCorner[i].y * zz);
             }
         }
         /// <summary>
@@ -324,51 +387,51 @@ namespace CarnationVariableSectionPart
         /// </summary>
         private void ModifySections()
         {
-            sectionVerts[section0Center] = cvsp.Secttion0Transform.localPosition;
-            sectionVerts[section1Center] = cvsp.Secttion1Transform.localPosition;
-            // sectionVerts[section1Center].x = cvsp.Secttion1Transform.localPosition.x;
-            // sectionVerts[section1Center].z = -cvsp.Run;
-            // sectionVerts[section1Center].y = cvsp.Raise;
-            // sectionVerts[section1Center] = cvsp.Secttion1Transform.localRotation * sectionVerts[section1Center];
+            //更新截面中心点位置
+            //应用缩放->应用扭转->应用偏移
+            sectionVerts[section0Center] = cvsp.Section0Transform.localPosition;
+            sectionVerts[section1Center] = cvsp.Section1Transform.localPosition;
+            Vector3 offset = qSection1Rotation * new Vector3(cvsp.Run, 0, cvsp.Raise);
             for (int i = 0; i < 8; i++)
             {
                 for (int j = 0; j < sectionCorners[0].Length; j++)
                 {
-                    //缩放截面
+                    //缩放截面到指定的长宽
                     var v1 = sectionVerts[sectionCorners[i][j]];
-                    v1.z *= (i < 4 ? cvsp.Section0Width : cvsp.Section1Width) / 2f;
-                    v1.y *= (i < 4 ? cvsp.Section0Height : cvsp.Section1Height) / 2f;
+                    v1.x *= (i < 4 ? cvsp.Section0Width : cvsp.Section1Width) / 2f;
+                    v1.z *= (i < 4 ? cvsp.Section0Height : cvsp.Section1Height) / 2f;
                     if (i >= 4)
                     {
-                        v1.z += cvsp.Run;
-                        v1.y += cvsp.Raise;
+                        //应用扭转：截面1
+                        v1 = qSection1Rotation * v1;
+                        //应用偏斜：截面1
+                        v1.x += cvsp.Run;
+                        v1.z += cvsp.Raise;
                     }
-                    v1.x = i < 4 ? cvsp.Secttion0Transform.localPosition.x : cvsp.Secttion1Transform.localPosition.x;
+                    //更新长度方向位置
+                    v1.y = i < 4 ? cvsp.Section0Transform.localPosition.y : cvsp.Section1Transform.localPosition.y;
                     sectionVerts[sectionCorners[i][j]] = v1;
                 }
                 //缩放截面上边线中点
                 var v = VectorCopy(originMidpoints[i]);
-                v.z *= (i < 4 ? cvsp.Section0Width : cvsp.Section1Width) / 2f;
-                v.y *= (i < 4 ? cvsp.Section0Height : cvsp.Section1Height) / 2f;
+                //缩放截面到指定的长宽
+                v.x *= (i < 4 ? cvsp.Section0Width : cvsp.Section1Width) / 2f;
+                v.z *= (i < 4 ? cvsp.Section0Height : cvsp.Section1Height) / 2f;
                 if (i >= 4)
                 {
-                    v.z += cvsp.Run;
-                    v.y += cvsp.Raise;
-                }
-                v.x = i < 4 ? cvsp.Secttion0Transform.localPosition.x : cvsp.Secttion1Transform.localPosition.x;
-                if (i >= 4)
+                    //对截面1上的边线中点应用扭转
                     v = qSection1Rotation * v;
+                    //应用偏斜：截面1上的边线中点
+                    v.x += cvsp.Run;
+                    v.z += cvsp.Raise;
+                }
+                //更新长度方向位置
+                v.y = i < 4 ? cvsp.Section0Transform.localPosition.y : cvsp.Section1Transform.localPosition.y;
                 midpoints[i] = v;
             }
             for (int i = 0; i < 8; i++)
             {
-                if (i >= 4)
-                    for (int j = 0; j < sectionCorners[4].Length; j++)
-                    {
-                        //旋转截面1
-                        sectionVerts[sectionCorners[i][j]] = qSection1Rotation * sectionVerts[sectionCorners[i][j]];
-                    }
-                //计算中点的法线
+                //计算边线中点的法线
                 Vector3 v1, v2;
                 if (i >= 4)
                 {
@@ -380,10 +443,11 @@ namespace CarnationVariableSectionPart
                     v1 = originMidpointNorms[(i + 3) % 4];
                     v2 = midpoints[i + 4] - midpoints[i];
                 }
+                //叉乘获得边线中点法向量
                 midpointNorms[i] = Vector3.Cross(v2, v1);
+                //对截面1上的边线中点法线应用扭转
                 if (i >= 4) midpointNorms[i] = qSection1Rotation * midpointNorms[i];
             }
-
         }
         /// <summary>
         /// 创建侧面
@@ -393,7 +457,7 @@ namespace CarnationVariableSectionPart
             float uv1 = 1;
             float uv0 = 1;
             Vector3[] newSecVerts = new Vector3[sectionVerts.Length + midpoints.Length];
-            //用sectionVerts只能生成棱附近的面，用midpoints来构建余下的面，补齐空洞
+            //用sectionVerts只能生成棱附近的面，用midpoints等信息来构建余下的面，补齐空洞
             sectionVerts.CopyTo(newSecVerts, 0);
             for (int i = 0; i < midpoints.Length; i++)
                 newSecVerts[i + sectionVerts.Length] = midpoints[i];
@@ -410,6 +474,7 @@ namespace CarnationVariableSectionPart
                 newSecCorners1[newSecCorners1.Length - 1] = sectionVerts.Length + 4 + ((i + 1) % 4);
 
                 bodySides[i].MakeStrip(newSecVerts, newSecCorners0, newSecCorners1, RoundRadius[i], RoundRadius[i + 4], uv0, uv1, out uv0, out uv1, cvsp);
+                //设置边线中点法线
                 bodySides[i].SetEndsNorms(midpointNorms[i], midpointNorms[(i + 1) % 4], midpointNorms[i + 4], midpointNorms[4 + ((i + 1) % 4)], RoundRadius[i], RoundRadius[i + 4], cvsp);
             }
         }
@@ -426,22 +491,22 @@ namespace CarnationVariableSectionPart
                 var corner = sectionCorners[i];
                 for (int j = 0; j < corner.Length; j++)
                 {
+                    float x;
                     float z;
-                    float y;
                     if (i > 3)
                     {
-                        z = sectionVerts[corner[j]].z - cvsp.Run;
-                        y = sectionVerts[corner[j]].y - cvsp.Raise;
+                        x = sectionVerts[corner[j]].x - cvsp.Run;
+                        z = sectionVerts[corner[j]].z - cvsp.Raise;
                     }
                     else
                     {
+                        x = sectionVerts[corner[j]].x;
                         z = sectionVerts[corner[j]].z;
-                        y = sectionVerts[corner[j]].y;
                     }
                     if (i > 3)
                     {
-                        var v = qSection1InverseRotation * new Vector3(0, y, z);
-                        y = v.y;
+                        var v = qSection1InverseRotation * new Vector3(x, 0, z);
+                        x = v.x;
                         z = v.z;
                     }
                     if (!cvsp.SectionTiledMapping)
@@ -450,31 +515,31 @@ namespace CarnationVariableSectionPart
                         {
                             if (widthGreater0)
                             {
-                                y /= cvsp.Section0Height / 2f;
-                                z /= cvsp.Section0Width / 2f;
+                                z /= cvsp.Section0Height / 2f;
+                                x /= cvsp.Section0Width / 2f;
                             }
                             else
                             {
-                                y /= cvsp.Section0Height / 2f;
-                                z /= cvsp.Section0Width / 2f;
+                                z /= cvsp.Section0Height / 2f;
+                                x /= cvsp.Section0Width / 2f;
                             }
                         }
                         else
                         {
                             if (widthGreater1)
                             {
-                                y /= cvsp.Section1Height / 2f;
-                                z /= cvsp.Section1Width / 2f;
+                                z /= cvsp.Section1Height / 2f;
+                                x /= cvsp.Section1Width / 2f;
                             }
                             else
                             {
-                                y /= cvsp.Section1Height / 2f;
-                                z /= cvsp.Section1Width / 2f;
+                                z /= cvsp.Section1Height / 2f;
+                                x /= cvsp.Section1Width / 2f;
                             }
                         }
                     }
-                    sectionUV[corner[j]].x = num * 0.5f * (z + 1f) - Mathf.Min(0f, num);
-                    sectionUV[corner[j]].y = .5f * (1 + y);
+                    sectionUV[corner[j]].x = num * 0.5f * (x + 1f) - Mathf.Min(0f, num);
+                    sectionUV[corner[j]].y = .5f * (1 + z);
                 }
             }
         }
@@ -589,7 +654,8 @@ namespace CarnationVariableSectionPart
         }
         public void Update()
         {
-            qSection1Rotation = Quaternion.AngleAxis(cvsp.Twist, Vector3.right);
+            //扭转四元数，也代表了截面1的旋转
+            qSection1Rotation = Quaternion.AngleAxis(cvsp.Twist, Vector3.up);
             qSection1InverseRotation = Quaternion.Inverse(qSection1Rotation);
             for (int i = 0; i < RoundRadius.Length; i++) BuildSection(i, RoundRadius[i]);
             for (int i = 0; i < RoundRadius.Length; i++) oldRoundRadius[i] = RoundRadius[i];

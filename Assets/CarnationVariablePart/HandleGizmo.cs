@@ -36,23 +36,8 @@ namespace CarnationVariableSectionPart
                 return _SectionID;
             }
         }
-        /// <summary>
-        /// Around X
-        /// </summary>
-        public float Rotation { get; private set; }
         public float RotateDir { get; private set; }
         public Vector3 StretchDir { get; private set; }
-        /// <summary>
-        /// Along Z
-        /// </summary>
-        public float TranslateX { get; private set; }
-        /// <summary>
-        /// Along Y
-        /// </summary>
-        public float TranslateY { get; private set; }
-        /// <summary>
-        /// Along X
-        /// </summary>
         public float Value0 { get; private set; }
         public float Value1 { get; private set; }
         Renderer Render
@@ -73,7 +58,6 @@ namespace CarnationVariableSectionPart
             }
         }
 
-        private float xMult, yMult;
         private bool engaged = false;
         private bool faded = false;
         public bool hidden = false;
@@ -110,7 +94,6 @@ namespace CarnationVariableSectionPart
         // Update is called once per frame
         void FixedUpdate()
         {
-            //throw new Exception();
             if (!engaged)
             {
                 if (modifying || hidden)
@@ -136,7 +119,6 @@ namespace CarnationVariableSectionPart
                 var v1 = Input.mousePosition - v0;
                 v1.z = 0;
                 var v2 = new Vector3(lastMousePosX, lastMousePosY, 0) - v0;
-                float v = Input.mousePosition.x - lastMousePosX;
                 if (v1.sqrMagnitude * v2.sqrMagnitude == 0) return;
                 Value0 = 0.4f * Vector3.Angle(v2, v1);
                 if (Vector3.Cross(v2, v1).z < 0)
@@ -146,16 +128,6 @@ namespace CarnationVariableSectionPart
             }
             else if (type <= ModifierType.XAndY)
             {
-                //Value0 = Input.mousePosition.x - lastMousePosX;
-                //Value1 = Input.mousePosition.y - lastMousePosY;
-                //Value0 *= xMult;
-                //Value1 *= yMult;
-                //valueChanged = Value0 != 0 || Value1 != 0;
-                //var v = new Vector3(0, Value1, Value0);
-                //v = Quaternion.Euler(-transform.parent.eulerAngles.x, 0, 0) * v;
-                //Value0 = v.z;
-                //Value1 = v.y;
-
                 var v = new Vector2(Input.mousePosition.x, Input.mousePosition.y) - new Vector2(lastMousePosX, lastMousePosY);
                 valueChanged = v.sqrMagnitude != 0;
                 Value0 = Vector2.Dot(v, xAxis) / xAxis.sqrMagnitude;
@@ -187,32 +159,22 @@ namespace CarnationVariableSectionPart
             lastMousePosY = Input.mousePosition.y;
             var origin = CVSPEditorTool.EditorCamera.WorldToScreenPoint(transform.parent.position);
             origin.z = 0;
-            var f = CVSPEditorTool.EditorCamera.WorldToScreenPoint(transform.parent.position + Vector3.forward);
-            xAxis = (CVSPEditorTool.EditorCamera.WorldToScreenPoint(transform.parent.position +transform.parent.forward) - origin);
+            xAxis = (CVSPEditorTool.EditorCamera.WorldToScreenPoint(transform.parent.position +transform.parent.right) - origin);
             xAxis.z = 0;
             if (xAxis.sqrMagnitude < 4)
                 xAxis = Vector3.positiveInfinity;
-            var zdir = (f - origin).x;
-            var u = CVSPEditorTool.EditorCamera.WorldToScreenPoint(transform.parent.position + Vector3.up);
-            yAxis = (CVSPEditorTool.EditorCamera.WorldToScreenPoint(transform.parent.position + transform.parent.up) - origin);
+            yAxis = (CVSPEditorTool.EditorCamera.WorldToScreenPoint(transform.parent.position + transform.parent.forward) - origin);
             yAxis.z = 0;
             if (yAxis.sqrMagnitude < 4)
                 yAxis = Vector3.positiveInfinity;
-            var ydir = (u-origin).y;
-            xMult = zdir == 0 ? 0 : 1 / zdir;
-            if (SectionID == 1) xMult = -xMult;
-            yMult = ydir == 0 ? 0 : 1 / ydir;
+            RotateDir = Mathf.Sign(-Vector3.Dot(CVSPEditorTool.EditorCamera.transform.forward, transform.parent.up));
 
-            RotateDir = Mathf.Sign(-Vector3.Dot(CVSPEditorTool.EditorCamera.transform.forward, transform.parent.right));
-
-            var dpixels = CVSPEditorTool.EditorCamera.WorldToScreenPoint(transform.parent.position + transform.parent.right) - origin;
+            var dpixels = CVSPEditorTool.EditorCamera.WorldToScreenPoint(transform.parent.position + transform.parent.up) - origin;
             dpixels.z = 0;
             if (dpixels.sqrMagnitude < 4)
                 StretchDir = Vector3.positiveInfinity;
             else
-            {
                 StretchDir = dpixels;
-            }
         }
 
         internal void OnRelease()
@@ -285,8 +247,6 @@ namespace CarnationVariableSectionPart
                 GUILayout.Label("MouseY:" + (Input.mousePosition.y));
                 CVSPMeshBuilder.RecalcNorm = GUILayout.Toggle(CVSPMeshBuilder.RecalcNorm, "Recalc Normal");
                 GUILayout.Label($"cam x:{CVSPEditorTool.EditorCamera.transform.position.x},y:{CVSPEditorTool.EditorCamera.transform.position.y},z:{CVSPEditorTool.EditorCamera.transform.position.z}");
-                GUILayout.Label($"xMult:{xMult}");
-                GUILayout.Label($"yMult:{yMult}");
                 GUILayout.EndVertical();
                 GUILayout.EndVertical();
                 GUILayout.EndArea();

@@ -3,6 +3,7 @@ using System;
 using System.IO;
 using UnityEngine;
 using System.Reflection;
+using System.Collections.Generic;
 
 namespace CarnationVariableSectionPart
 {
@@ -96,8 +97,8 @@ namespace CarnationVariableSectionPart
                 PartParamChanged = true;
             }
         }
-        public Transform Secttion1Transform { get; private set; }
-        public Transform Secttion0Transform { get; private set; }
+        public Transform Section1Transform { get; private set; }
+        public Transform Section0Transform { get; private set; }
         private float[] oldCornerRadius = new float[8];
         public float[] CornerRadius
         {
@@ -293,7 +294,7 @@ namespace CarnationVariableSectionPart
             }
         }
 
-        public MeshCollider Collider { get => collider; private set=>collider=value; }
+        public MeshCollider Collider { get => collider; private set => collider = value; }
 
         public Texture EndTexture;
         public Texture SideTexture;
@@ -324,8 +325,8 @@ namespace CarnationVariableSectionPart
                 Section1 = new GameObject("section1node");
                 Section1.transform.SetParent(Model.transform, false);
             }
-            Secttion0Transform = Section0.transform;
-            Secttion1Transform = Section1.transform;
+            Section0Transform = Section0.transform;
+            Section1Transform = Section1.transform;
         }
         public void UpdateGeometry()
         {
@@ -350,16 +351,123 @@ namespace CarnationVariableSectionPart
                 SectionSizes.z = Section1Width;
                 SectionSizes.w = Section1Height;
 
-                Secttion1Transform.localRotation = Quaternion.Euler(-Twist, 180f, 0);
-                Secttion1Transform.localPosition = Secttion1Transform.localRotation * new Vector3(Length / 2, Raise, -Run);
-                Secttion0Transform.localPosition = Vector3.right * Length / 2;
-                Secttion0Transform.localRotation = Quaternion.identity;
+                Section1Transform.localRotation = Quaternion.Euler(0, Twist, 180f);
+                Section1Transform.localPosition = new Vector3(Run, -Length / 2f, Raise);
+                Section0Transform.localPosition = Vector3.up * Length / 2f;
+                Section0Transform.localRotation = Quaternion.identity;
                 MeshBuilder.Update();
                 Collider.sharedMesh = null;
                 Collider.sharedMesh = mf.mesh;
                 PartParamChanged = false;
             }
         }
+        /// <summary>
+        /// 在开始编辑前计算、保存本零件节点和相连零件对应节点的偏移、旋转，用于编辑时更新相连零件的位置
+        /// </summary>
+        private void GetNodePairsTransform()
+        {
+            var nodes = part.attachNodes;
+            AttachNode oppsing, current;
+            current = nodes[nodeIDSec0];
+            if ((oppsing = current.FindOpposingNode()) != null)
+            {
+                nodeOppsingPartPos[nodeIDSec0] = oppsing.owner.transform.position;
+                nodeOppsingPartRot[nodeIDSec0] = oppsing.owner.transform.rotation;
+                //世界坐标系，从本零件0节点到所连接零件上节点的旋转
+                nodePairsRotationOld[nodeIDSec0] = (oppsing.owner.transform.rotation * Quaternion.FromToRotation(Vector3.up, oppsing.orientation))
+                                                * Quaternion.Inverse(part.transform.rotation * Quaternion.FromToRotation(Vector3.up, current.orientation));
+                //世界坐标系，从本零件0节点到所连接零件上节点的偏移
+                nodePairsTranslationOld[nodeIDSec0] = oppsing.owner.transform.TransformPoint(oppsing.position)
+                                                                 - part.transform.TransformPoint(current.position);
+            }
+            current = nodes[nodeIDSec1];
+            if ((oppsing = current.FindOpposingNode()) != null)
+            {
+                nodeOppsingPartPos[nodeIDSec1] = oppsing.owner.transform.position;
+                nodeOppsingPartRot[nodeIDSec1] = oppsing.owner.transform.rotation;
+                //世界坐标系，从本零件1节点到所连接零件上节点的旋转
+                nodePairsRotationOld[nodeIDSec1] = (oppsing.owner.transform.rotation * Quaternion.FromToRotation(Vector3.up, oppsing.orientation))
+                                                * Quaternion.Inverse(part.transform.rotation * Quaternion.FromToRotation(Vector3.up, current.orientation));
+                //世界坐标系，从本零件1节点到所连接零件上节点的偏移
+                nodePairsTranslationOld[nodeIDSec1] = oppsing.owner.transform.TransformPoint(oppsing.position)
+                                                                 - part.transform.TransformPoint(current.position);
+            }
+        }
+        /// <summary>
+        /// 更新本零件的连接节点，更新连接到这个零件的零件位置
+        /// </summary>
+        private void UpdateAttachNodes()
+        {
+            return;
+            var nodes = part.attachNodes;
+            //Debug.Log($"[CarnationVariableSectionPart] Attach nodes:{nodes.Count}");
+            //更新本零件的连接节点
+            nodes[nodeIDSec0].position = Section0Transform.localPosition;
+            nodes[nodeIDSec0].nodeTransform = Section0Transform;
+            nodes[nodeIDSec0].orientation = Section0Transform.up;
+            nodes[nodeIDSec1].position = Section1Transform.localPosition;
+            nodes[nodeIDSec1].nodeTransform = Section1Transform;
+            nodes[nodeIDSec1].orientation = Section1Transform.up;
+
+            Vector3 posChange, nodePairsTranslationNew;
+            Quaternion rotChange, nodePairsRotationNew;
+            bool ParentOnNode0 = false, ParentOnNode1 = false;
+            AttachNode node0 = nodes[nodeIDSec0].FindOpposingNode();
+            AttachNode node1 = nodes[nodeIDSec1].FindOpposingNode();
+            ParentOnNode0 = node0 != null && part.parent != null && (node0.owner.persistentId == part.parent.persistentId);
+            ParentOnNode1 = node1 != null && part.parent != null && (node1.owner.persistentId == part.parent.persistentId);
+            bool IsFreeOnBothEnds = node0 == null && node1 == null;
+            Debug.Log("[CarnationVariableSectionPart] Part parent is on section" + (ParentOnNode0 ? "0" : (ParentOnNode1 ? "1" : "null")) + "\'s side");
+            //截面0上连了零件
+            if (node0 != null)
+            {
+                //如果截面0连的不是父物体，那么可能在截面1上连了父物体，也可能在表面节点连了父物体，也可能本零件就是根零件
+                if (!ParentOnNode0)
+                {
+                    //在截面1上连了父物体。因为变形的Twist和Raise和Run都是只施加到截面1的，所以对本零件transfrom施加-0.5倍的Twist、Raise、Run和Length，对截面0及其相连零件施加-1倍的上述变换
+                    if (ParentOnNode1)
+                    {
+                    }
+                    //在表面节点连了父物体。本零件位置施加施加-0.5倍的Raise和Run，两个截面施加
+                    else if (part.parent)
+                    {
+                    }
+                    //本零件就是根零件
+                    else
+                    {
+                    }
+                    //编辑带来的偏移，转换到世界坐标
+                    posChange = Section0Transform.rotation * (Section0Transform.localPosition - sec0PosBeforeEdit);
+                    //编辑带来的旋转，转换到世界坐标
+                    rotChange = Section0Transform.rotation * Section0Transform.localRotation * Quaternion.Inverse(sec0RotBeforeEdit);
+                    //对相连节点间的偏移应用编辑带来的旋转和偏移，在世界坐标系，保存为新偏移
+                    nodePairsTranslationNew = (rotChange * nodePairsTranslationOld[nodeIDSec0]) + posChange;
+                    //对相连节点间的旋转应用编辑带来的旋转，在世界坐标系，保存为新旋转
+                    nodePairsRotationNew = rotChange * nodePairsRotationOld[nodeIDSec0];
+                    //对连接的零件应用新旧偏移的差值
+                    node0.owner.transform.position = nodeOppsingPartPos[nodeIDSec0] + nodePairsTranslationNew - nodePairsTranslationOld[nodeIDSec0];
+                    //对连接的零件应用新旧旋转的差值
+                    node0.owner.transform.rotation = nodeOppsingPartRot[nodeIDSec0] * (nodePairsRotationNew * Quaternion.Inverse(nodePairsRotationOld[nodeIDSec0]));
+                }
+            }
+            if (node1 != null)
+            {
+                //编辑带来的偏移，转换到世界坐标
+                posChange = Section1Transform.rotation * (Section1Transform.localPosition - sec1PosBeforeEdit);
+                //编辑带来的旋转，转换到世界坐标
+                rotChange = Section1Transform.rotation * Section1Transform.localRotation * Quaternion.Inverse(sec1RotBeforeEdit);
+                //对相连节点间的偏移应用编辑带来的旋转和偏移，在世界坐标系，保存为新偏移
+                nodePairsTranslationNew = (rotChange * nodePairsTranslationOld[nodeIDSec1]) + posChange;
+                //对相连节点间的旋转应用编辑带来的旋转，在世界坐标系，保存为新旋转
+                nodePairsRotationNew = rotChange * nodePairsRotationOld[nodeIDSec1];
+                //对连接的零件应用新旧偏移的差值
+                node0.owner.transform.position = nodeOppsingPartPos[nodeIDSec1] + nodePairsTranslationNew - nodePairsTranslationOld[nodeIDSec1];
+                //对连接的零件应用新旧旋转的差值
+                node0.owner.transform.rotation = nodeOppsingPartRot[nodeIDSec1] * (nodePairsRotationNew * Quaternion.Inverse(nodePairsRotationOld[nodeIDSec1]));
+            }
+
+        }
+
         private void Start()
         {
             if (!HighLogic.LoadedSceneIsEditor) return;
@@ -402,9 +510,13 @@ namespace CarnationVariableSectionPart
             UpdateMaterials();
             SetupSectionNodes();
             MeshBuilder.StartBuilding(Mf, this);
+            //更新到存档保存的零件尺寸
             UpdateGeometry();
+            GetNodePairsTransform();
+            // UpdateAttachNodes();
             MeshBuilder.FinishBuilding(this);
         }
+
         public override void OnSave(ConfigNode node)
         {
             //  Section0Radius.x = CornerRadius[0];
@@ -474,6 +586,7 @@ namespace CarnationVariableSectionPart
                     {
                         UpdateMaterials();
                         UpdateGeometry();
+                        UpdateAttachNodes();
                         startEdit = false;
                     }
                 }
@@ -504,6 +617,11 @@ namespace CarnationVariableSectionPart
             editing = true;
             startEdit = true;
             MeshBuilder.StartBuilding(mf, this);
+            sec0RotBeforeEdit = Section0Transform.localRotation;
+            sec1RotBeforeEdit = Section1Transform.localRotation;
+            sec0PosBeforeEdit = Section0Transform.localPosition;
+            sec1PosBeforeEdit = Section1Transform.localPosition;
+            GetNodePairsTransform();
             //Secttion0Transform.localPosition = Vector3.zero;
             //Secttion1Transform.localPosition = Vector3.zero;
         }
@@ -547,10 +665,16 @@ namespace CarnationVariableSectionPart
 
         private void OnGUI()
         {
+            GUI.Label(new Rect(50, 50, 300, 24), $"x:{transform.position.x},y:{transform.position.y},z:{transform.position.z}");
+            if (GUI.Button(new Rect(50, 75, 24, 24), "-")) Run -= .2f;
+            GUI.Label(new Rect(74, 75, 60, 24), "Run");
+            if (GUI.Button(new Rect(134, 75, 24, 24), "+")) Run += .2f;
+            if (GUI.Button(new Rect(50, 100, 24, 24), "-")) Raise -= .2f;
+            GUI.Label(new Rect(74, 100, 60, 24), "Raise");
+            if (GUI.Button(new Rect(134, 100, 24, 24), "+")) Raise += .2f;
             return;
             GUILayout.BeginArea(new Rect(Screen.width - 300, 300, 300, 500));
             GUILayout.BeginHorizontal();
-            GUILayout.Label($"x:{transform.position.x},y:{transform.position.y},z:{transform.position.z}");
             GUILayout.EndHorizontal();
             GUILayout.BeginHorizontal();
             s = GUILayout.TextField(s);
@@ -602,6 +726,17 @@ namespace CarnationVariableSectionPart
         private static int ancx;
         private static int ancy;
         private static string s = "";
+        private static readonly int nodeIDSec1 = 1;
+        private static readonly int nodeIDSec0 = 0;
+        private static readonly int nodeCount = 2;
+        private Vector3[] nodeOppsingPartPos = new Vector3[nodeCount];
+        private Quaternion[] nodeOppsingPartRot = new Quaternion[nodeCount];
+        private Vector3[] nodePairsTranslationOld = new Vector3[nodeCount];
+        private Quaternion[] nodePairsRotationOld = new Quaternion[nodeCount];
+        private Quaternion sec0RotBeforeEdit;
+        private Quaternion sec1RotBeforeEdit;
+        private Vector3 sec0PosBeforeEdit;
+        private Vector3 sec1PosBeforeEdit;
         private readonly bool UseSideTexture = true;
         private readonly bool UseEndTexture = true;
 

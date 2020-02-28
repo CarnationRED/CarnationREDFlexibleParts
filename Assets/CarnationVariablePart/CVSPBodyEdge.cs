@@ -46,6 +46,7 @@ namespace CarnationVariableSectionPart
             public void MakeStrip(Vector3[] verts, int[] vertID0, int[] vertID1, /*float[] uvSteps0, float[] uvSteps1, */float r0, float r1, float uvStart0, float uvStart1, out float uv0, out float uv1, ModuleCarnationVariablePart param)
             {
                 float uvCopy0 = uvStart0, uvCopy1 = uvStart1;
+                //对尺寸有0时，特殊处理
                 if (IsZero(param.Section0Height) && Id % 2 == 0)
                     uvStart0 += 1f;
                 if (IsZero(param.Section0Width) && Id % 2 == 1)
@@ -56,6 +57,7 @@ namespace CarnationVariableSectionPart
                     uvStart1 += 1f;
                 R0 = r0;
                 R1 = r1;
+                //是否重新划分三角形，相见后文
                 reTriangulate = R0 > R1;
                 additionVert = 0;
                 if (IsZero(R0)) additionVert++;
@@ -82,27 +84,29 @@ namespace CarnationVariableSectionPart
                             uv[j].x *= 0.5f;
                         }
                     }
+                    //边长，用于UV计算
                     float length0;
                     float length1;
-                    //边长，用于UV计算
                     if (!param.RealWorldMapping)
                     {
-                        //length0 = uvSteps0[i / 2];
-                        //length1 = uvSteps1[i / 2];
+                        //使用矫正的边长计算UV
                         length0 = ScaledDistance(vertices[i], vertices[i + 2], param, 0);
                         length1 = ScaledDistance(vertices[i + 1], vertices[i + 3], param, 1);
                     }
                     else
                     {
+                        //使用实际边长计算UV，真实世界贴图坐标
                         length0 = Vector3.Distance(vertices[i], vertices[i + 2]);
                         length1 = Vector3.Distance(vertices[i + 1], vertices[i + 3]);
                     }
                     if (param.CornerUVCorrection)
                         if (i > 0 && i / 2 < vertID0.Length - 2)
                         {
+                            //矫正圆角处的UV，达到圆角大小改变，圆角处UV增量也不变的效果
                             length0 *= perimeterSharp / perimeterRound;
                             length1 *= perimeterSharp / perimeterRound;
                         }
+                    //UV增加一个边长
                     uvStart0 += length0;
                     uvStart1 += length1;
                     for (int j = 2; j < 4; j++)
@@ -112,24 +116,24 @@ namespace CarnationVariableSectionPart
                         uv[i + j].x = j == 3 ? uvStart1 : uvStart0;
                         uv[i + j].x *= 0.5f;
                     }
-                    //使用不同的三角划分，改善外观
+                    //四边形使用两种不同的三角划分，改善外观（大部分时候改善效果有限）
                     if ((!reTriangulate && i < vertID0.Length - 1) || (reTriangulate && i >= vertID0.Length - 1))
                     {
                         triangles[i * 3] = i;
-                        triangles[i * 3 + 1] = i + 2;
-                        triangles[i * 3 + 2] = i + 1;
+                        triangles[i * 3 + 1] = i + 1;
+                        triangles[i * 3 + 2] = i + 2;
                         triangles[i * 3 + 3] = i + 1;
-                        triangles[i * 3 + 4] = i + 2;
-                        triangles[i * 3 + 5] = i + 3;
+                        triangles[i * 3 + 4] = i + 3;
+                        triangles[i * 3 + 5] = i + 2;
                     }
                     else
                     {
                         triangles[i * 3] = i;
-                        triangles[i * 3 + 1] = i + 3;
-                        triangles[i * 3 + 2] = i + 1;
+                        triangles[i * 3 + 1] = i + 1;
+                        triangles[i * 3 + 2] = i + 3;
                         triangles[i * 3 + 3] = i;
-                        triangles[i * 3 + 4] = i + 2;
-                        triangles[i * 3 + 5] = i + 3;
+                        triangles[i * 3 + 4] = i + 3;
+                        triangles[i * 3 + 5] = i + 2;
                     }
                 }
                 if (param.RealWorldMapping)
@@ -139,6 +143,7 @@ namespace CarnationVariableSectionPart
                 }
                 else
                 {
+                    //直接+2，不用计算边长累加的结果，避免截面尺寸为零时出错
                     uv0 = uvCopy0 + 2f;
                     uv1 = uvCopy1 + 2f;
                 }
@@ -180,6 +185,7 @@ namespace CarnationVariableSectionPart
                      //triangles[triID * 3 + 3] = index;
                     }
                 }
+                //mesh完全用来计算法线了
                 mesh.Clear();
                 mesh.vertices = vertices;
                 mesh.triangles = triangles;
@@ -187,16 +193,23 @@ namespace CarnationVariableSectionPart
                 mesh.RecalculateNormals();
                 normals = mesh.normals;
             }
-
+            /// <summary>
+            /// 只考虑了x、z坐标
+            /// </summary>
+            /// <param name="v1"></param>
+            /// <param name="v2"></param>
+            /// <param name="param"></param>
+            /// <param name="section">截面编号，0~1</param>
+            /// <returns></returns>
             private float ScaledDistance(Vector3 v1, Vector3 v2, ModuleCarnationVariablePart param, int section)
             {
-                //v1.x -= v2.x;
-                v1.y -= v2.y;
+                v1.x -= v2.x;
+                //v1.y -= v2.y;
                 v1.z -= v2.z;
-                if (IsZero(v1.z) && IsZero(v1.y)) return 0f;
-                v1.y /= Mathf.Max(0.0001f, (section == 0 ? param.Section0Height : param.Section1Height) / 2f);
-                v1.z /= Mathf.Max(0.0001f, (section == 0 ? param.Section0Width : param.Section1Width) / 2f);
-                return Mathf.Sqrt(v1.z * v1.z + v1.y * v1.y);
+                if (IsZero(v1.x) && IsZero(v1.z)) return 0f;
+                v1.z /= Mathf.Max(0.0001f, (section == 0 ? param.Section0Height : param.Section1Height) / 2f);
+                v1.x /= Mathf.Max(0.0001f, (section == 0 ? param.Section0Width : param.Section1Width) / 2f);
+                return Mathf.Sqrt(v1.x * v1.x + v1.z * v1.z);
             }
 
             /// <summary>
@@ -226,17 +239,17 @@ namespace CarnationVariableSectionPart
                 }
                 else
                 {
-                    CopyYZComponent(n1, ref normals[0]);
-                    CopyYZComponent(n1, ref normals[2]);
-                    CopyYZComponent(n2, ref normals[normals.Length - additionVert - 4]);
-                    CopyYZComponent(n2, ref normals[normals.Length - additionVert - 2]);
+                    CopyXZComponent(n1, ref normals[0]);
+                    CopyXZComponent(n1, ref normals[2]);
+                    CopyXZComponent(n2, ref normals[normals.Length - additionVert - 4]);
+                    CopyXZComponent(n2, ref normals[normals.Length - additionVert - 2]);
                 }
                 if (!IsZero(1f - r1))
                 {
-                    CopyYZComponent(n3, ref normals[1]);
-                    CopyYZComponent(n3, ref normals[3]);
-                    CopyYZComponent(n4, ref normals[normals.Length - additionVert - 3]);
-                    CopyYZComponent(n4, ref normals[normals.Length - additionVert - 1]);
+                    CopyXZComponent(n3, ref normals[1]);
+                    CopyXZComponent(n3, ref normals[3]);
+                    CopyXZComponent(n4, ref normals[normals.Length - additionVert - 3]);
+                    CopyXZComponent(n4, ref normals[normals.Length - additionVert - 1]);
                 }
                 else
                 {
@@ -246,9 +259,14 @@ namespace CarnationVariableSectionPart
                     normals[normals.Length - additionVert - 1] = n4;
                 }
             }
-            private static void CopyYZComponent(Vector3 from, ref Vector3 result)
+            /// <summary>
+            /// 将result绕Y轴旋转到和from最近的位置
+            /// </summary>
+            /// <param name="from"></param>
+            /// <param name="result"></param>
+            private static void CopyXZComponent(Vector3 from, ref Vector3 result)
             {
-                var q = Quaternion.FromToRotation(new Vector3(0, result.y, result.z), new Vector3(0, from.y, from.z));
+                var q = Quaternion.FromToRotation(new Vector3(result.x, 0, result.z), new Vector3(from.x, 0, from.z));
                 result = q * result;
             }
         }

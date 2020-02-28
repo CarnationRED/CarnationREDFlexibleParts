@@ -22,10 +22,10 @@ namespace CarnationVariableSectionPart
         HandleGizmo.ModifierType.XAndY,
         HandleGizmo.ModifierType.XAndY,
         HandleGizmo.ModifierType.XAndY,
-        HandleGizmo.ModifierType.X,
         HandleGizmo.ModifierType.Y,
         HandleGizmo.ModifierType.X,
-        HandleGizmo.ModifierType.Y };
+        HandleGizmo.ModifierType.Y,
+        HandleGizmo.ModifierType.X };
         private static Camera editorCamera;
         private static float MinDimension = 0.5f;
         private static float MaxScale = 2f;
@@ -97,7 +97,7 @@ namespace CarnationVariableSectionPart
 
         private void Load()
         {
-            if (prefab == null && !loading)
+            if (prefab == null && !assetLoading)
             {
                 /*StartCoroutine(*/
                 LoadAssts();//);
@@ -108,7 +108,7 @@ namespace CarnationVariableSectionPart
         void Start()
         {
         }
-        static bool loading = false;
+        static bool assetLoading = false;
         public static int GizmosLayer = 0b10;
         public void SetGizmosLayer(int l)
         {
@@ -129,7 +129,7 @@ namespace CarnationVariableSectionPart
 
         void LoadAssts()
         {
-            loading = true;
+            assetLoading = true;
             string path = @"file://" + AssemblyPath;
             path = path.Remove(path.LastIndexOf("Plugins")) + @"AssetBundles" + Path.DirectorySeparatorChar;
             WWW www = new WWW(path + Name_Handles);
@@ -160,9 +160,12 @@ namespace CarnationVariableSectionPart
                 var t = prefab.transform;
                 // var s = Shader.Find("KSP/Bumped Specular");
                 Debug.Log("asset childs: " + t.childCount);
+                Quaternion q = Quaternion.Euler(0f, 0f, 90f);
                 for (int i = 0; i < t.childCount; i++)
                 {
                     var g = t.GetChild(i).gameObject;
+                    g.transform.localPosition = q * g.transform.localPosition;
+                    g.transform.localRotation = q * g.transform.localRotation;
                     g.layer = GizmosLayer;
                     var c = g.AddComponent<HandleGizmo>();
                     c.type = types[i];
@@ -175,7 +178,7 @@ namespace CarnationVariableSectionPart
             //yield return null;
             www.assetBundle.Unload(false);
             www.Dispose();
-            loading = false;
+            assetLoading = false;
             if (!EditorToolActivated)
                 Instance.gameObject.SetActive(false);
         }
@@ -315,7 +318,8 @@ namespace CarnationVariableSectionPart
         private void OnModifierValueChanged(float value0, float value1, int id, int sectionID)
         {
             //Debug.Log("v:" + value + "\tid:" + id);
-            Vector2? dir = null;
+            Vector2 dir;
+            int target;
             switch (id)
             {
                 case 0:  //X,Y or XAndY
@@ -330,28 +334,28 @@ namespace CarnationVariableSectionPart
                         id -= 10;
                     if (id < 2)
                     {
-                        if (sectionID == 0)
+                        if (sectionID==0)
                         {
-                            Section0Height += value1;
-                            Section0Width += id == 0 ? value0 : -value0;
+                            Section0Width -= value0;
+                            Section0Height += id == 0 ? value1 : -value1;
                         }
                         else
                         {
-                            Section1Height += value1;
-                            Section1Width += id == 0 ? value0 : -value0;
+                            Section1Width -= value0;
+                            Section1Height += id == 0 ? value1 : -value1;
                         }
                     }
                     else
                     {
                         if (sectionID == 0)
                         {
-                            Section0Height -= value1;
-                            Section0Width += id == 3 ? value0 : -value0;
+                            Section0Height +=id == 3 ? value1:-value1;
+                            Section0Width +=  value0;
                         }
                         else
                         {
-                            Section1Height -= value1;
-                            Section1Width += id == 3 ? value0 : -value0;
+                            Section1Height += id == 3 ? value1 : -value1;
+                            Section1Width += value0;
                         }
                     }
                     if (sectionID == 0)
@@ -380,34 +384,31 @@ namespace CarnationVariableSectionPart
                     partModule.Twist = AngleSnap(Twist);
                     break;
                 case 6://XAndY, Radius modifiers
-                    if (dir == null)
-                        dir = new Vector2(0.707106f, 0.707106f);
+                        dir = new Vector2(-0.707106f, 0.707106f);
+                    target = 0;
                     goto IL_3;
                 case 7:
-                    if (dir == null)
-                        dir = new Vector2(-0.707106f, 0.707106f);
+                        dir = new Vector2(-0.707106f, -0.707106f);
+                    target = 3;
                     goto IL_3;
                 case 8:
-                    if (dir == null)
-                        dir = new Vector2(-0.707106f, -0.707106f);
+                        dir = new Vector2(0.707106f, -0.707106f);
+                    target = 2;
                     goto IL_3;
                 case 9:
-                    if (dir == null)
-                        dir = new Vector2(0.707106f, -0.707106f);
-                    IL_3:
-                    var r = .4f * Vector2.Dot(new Vector2(value0, value1), dir.Value);
-                    if (sectionID == 0)
+                        dir = new Vector2(0.707106f, 0.707106f);
+                    target = 1;
+                IL_3:
+                    var r = .4f * Vector2.Dot(new Vector2(value0, value1), dir);
+
+                    if (sectionID == 1)
                     {
-                        id -= 6;
-                    }
-                    else
-                    {
-                        id -= 1;
                         if (id % 2 == 0)
-                            id -= 2;
+                            target += 2;
+                        target += 3;
                     }
-                    CornerRadius[id] = Mathf.Clamp(CornerRadius[id] - r, 0, 1);
-                    partModule.CornerRadius[id] = OffsetSnap(CornerRadius[id]);
+                    CornerRadius[target] = Mathf.Clamp(CornerRadius[target] - r, 0, 1);
+                    partModule.CornerRadius[target] = OffsetSnap(CornerRadius[target]);
                     break;
             }
         }
@@ -450,8 +451,8 @@ namespace CarnationVariableSectionPart
                     GameUILocked = false;
                 }
             }
-            var b0 = Vector3.Dot(EditorCamera.transform.forward, partSection0.transform.right) < .1f;
-            var b1 = Vector3.Dot(EditorCamera.transform.forward, partSection1.transform.right) < .1f;
+            var b0 = Vector3.Dot(EditorCamera.transform.forward, partSection0.transform.up) < .1f;
+            var b1 = Vector3.Dot(EditorCamera.transform.forward, partSection1.transform.up) < .1f;
             //throw new Exception();
             if (!sec0FacingUser.HasValue || b0 != sec0FacingUser.Value)
             {
@@ -486,7 +487,7 @@ namespace CarnationVariableSectionPart
                         mouseDragging = true;
                     }
                 }
-                else
+                else//没有拖动变形手柄，且按下左键，则隐藏变形手柄，隐藏编辑工具
                     Deactivate();
             }
             else if (mouseDragging || partModule.PartParamChanged)
@@ -525,8 +526,8 @@ namespace CarnationVariableSectionPart
                 if ((partSection0 == null || partSection1 == null))
                 {
                     Debug.Log("[CarnationVariableSectionPart] Added Editor Gizmos");
-                    partSection0 = partModule.Secttion0Transform.gameObject;
-                    partSection1 = partModule.Secttion1Transform.gameObject;
+                    partSection0 = partModule.Section0Transform.gameObject;
+                    partSection1 = partModule.Section1Transform.gameObject;
                     while (0 < section0.transform.childCount)
                     {
                         var t = section0.transform.GetChild(0);
@@ -558,13 +559,13 @@ namespace CarnationVariableSectionPart
             for (int i = 0; i < partSection0.transform.childCount; i++)
             {
                 Transform t = partSection0.transform.GetChild(i);
-                t.localPosition = new Vector3(0, Sign(t.localPosition.y) * height0 / 2, Sign(t.localPosition.z) * witdth0 / 2);
+                t.localPosition = new Vector3(Sign(t.localPosition.x) * witdth0 / 2, 0, Sign(t.localPosition.z) * height0 / 2);
                 t.localScale = Vector3.one * scale0;
             }
             for (int i = 0; i < partSection1.transform.childCount; i++)
             {
                 Transform t = partSection1.transform.GetChild(i);
-                t.localPosition = new Vector3(0, Sign(t.localPosition.y) * height1 / 2, Sign(t.localPosition.z) * witdth1 / 2);
+                t.localPosition = new Vector3(Sign(t.localPosition.x) * witdth1 / 2, 0, Sign(t.localPosition.z) * height1 / 2);
                 t.localScale = Vector3.one * scale1;
             }
         }
