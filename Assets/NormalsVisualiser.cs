@@ -48,6 +48,8 @@ public class NormalsVisualizer : MonoBehaviour
     public static List<NormalsVisualizer> Instances = new List<NormalsVisualizer>();
     private void Start()
     {
+        if (!HighLogic.LoadedSceneIsEditor)
+        { Destroy(this); return; }
         if (TryGetComponent<MeshFilter>(out MeshFilter mf))
         {
             mesh = mf.sharedMesh;
@@ -60,6 +62,7 @@ public class NormalsVisualizer : MonoBehaviour
             mat.color = red;
         }
         Instances.Add(this);
+
         if (!CarnationVariableSectionPart.CVSPEditorTool.EditorCamera.TryGetComponent<CameraPlugin>(out _))
         {
             CarnationVariableSectionPart.CVSPEditorTool.EditorCamera.gameObject.AddComponent<CameraPlugin>();

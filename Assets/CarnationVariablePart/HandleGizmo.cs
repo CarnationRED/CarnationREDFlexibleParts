@@ -37,6 +37,7 @@ namespace CarnationVariableSectionPart
             }
         }
         public float RotateDir { get; private set; }
+        private Vector3 rotateOrigin;
         public Vector3 StretchDir { get; private set; }
         public float Value0 { get; private set; }
         public float Value1 { get; private set; }
@@ -114,11 +115,10 @@ namespace CarnationVariableSectionPart
             }
             else if (type == ModifierType.Rotation)
             {
-                var v0 = CVSPEditorTool.EditorCamera.WorldToScreenPoint(transform.parent.position);
-                v0.z = 0;
-                var v1 = Input.mousePosition - v0;
+                rotateOrigin.z = 0;
+                var v1 = Input.mousePosition - rotateOrigin;
                 v1.z = 0;
-                var v2 = new Vector3(lastMousePosX, lastMousePosY, 0) - v0;
+                var v2 = new Vector3(lastMousePosX, lastMousePosY, 0) - rotateOrigin;
                 if (v1.sqrMagnitude * v2.sqrMagnitude == 0) return;
                 Value0 = 0.4f * Vector3.Angle(v2, v1);
                 if (Vector3.Cross(v2, v1).z < 0)
@@ -175,6 +175,7 @@ namespace CarnationVariableSectionPart
                 StretchDir = Vector3.positiveInfinity;
             else
                 StretchDir = dpixels;
+            rotateOrigin = CVSPEditorTool.EditorCamera.WorldToScreenPoint(transform.parent.position);
         }
 
         internal void OnRelease()
@@ -188,6 +189,7 @@ namespace CarnationVariableSectionPart
 
         private void OnGUI()
         {
+            return;
             if (ID == 0 && SectionID == 0)
             {
                 dx = dy = dz = 0;
