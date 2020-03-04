@@ -75,7 +75,7 @@ namespace CarnationVariableSectionPart
         void Start()
         {
         }
-        public void SetFade(bool f)
+        private void SetFade(bool f)
         {
             if (faded != f)
             {
@@ -97,7 +97,7 @@ namespace CarnationVariableSectionPart
         {
             if (!engaged)
             {
-                if (modifying || hidden)
+                if (modifying || hidden||Input.GetMouseButton(1))
                     SetFade(true);
                 else
                     SetFade(false);

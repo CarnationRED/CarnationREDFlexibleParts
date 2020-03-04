@@ -68,6 +68,24 @@ public class NormalsVisualizer : MonoBehaviour
             CarnationVariableSectionPart.CVSPEditorTool.EditorCamera.gameObject.AddComponent<CameraPlugin>();
         }
     }
+    private void Update()
+    {
+        return;
+        if (Input.GetKeyDown(KeyCode.H))
+            if (Physics.Raycast(CarnationVariableSectionPart.CVSPEditorTool.EditorCamera.ScreenPointToRay(Input.mousePosition), out RaycastHit hit, 100, 1 << 0))
+            {
+                var t = hit.collider.GetComponentInParent<Part>().transform.Find("model");
+                if (t)
+                    foreach (var i in t.GetComponentsInChildren<MeshFilter>())
+                    {
+                        if (!t.TryGetComponent<MeshCollider>(out _))
+                            t.gameObject.AddComponent<NormalsVisualizer>();
+                    }
+                if (!hit.collider.transform.parent.gameObject.TryGetComponent<NormalsVisualizer>(out _))
+                    hit.collider.transform.parent.gameObject.AddComponent<NormalsVisualizer>();
+            }
+    }
+
     private void OnDestroy()
     {
         if (Instances.Contains(this))
@@ -77,12 +95,17 @@ public class NormalsVisualizer : MonoBehaviour
     {
         for (int i = 0; i < mesh.vertexCount; i++)
         {
+            //    GL.Begin(GL.LINES);
+            //    GL.Vertex(transform.TransformPoint(mesh.vertices[i]));
+            //    GL.Vertex(transform.TransformPoint(mesh.vertices[i] + .25f * mesh.normals[i]));
+            //    GL.End();
             GL.Begin(GL.LINES);
             GL.Vertex(transform.TransformPoint(mesh.vertices[i]));
-            GL.Vertex(transform.TransformPoint(mesh.vertices[i] + .25f * mesh.normals[i]));
+            GL.Vertex(transform.TransformPoint(mesh.vertices[i] + .25f * toV3(mesh.tangents[i])));
             GL.End();
         }
     }
+    private Vector3 toV3(Vector4 v) => new Vector3(v.x, v.y, v.z) * v.w;
     public class CameraPlugin : MonoBehaviour
     {
         private void OnPostRender()

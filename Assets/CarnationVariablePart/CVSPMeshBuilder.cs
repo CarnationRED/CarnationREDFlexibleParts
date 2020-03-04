@@ -172,12 +172,11 @@ namespace CarnationVariableSectionPart
         new Vector2(0.8660254f, 0.5f),
         new Vector2(0.9659258f, 0.2588190f),
         new Vector2(1f, 0f)};
-        private static float perimeterRound = 1.566314f;
-
-        private static float perimeterSharp = 2f;
-        private Mesh sectionMesh;
+        public const float PerimeterRound = 1.566314f;
+        public const float PerimeterSharp = 2f;
         private Vector3[] sectionVerts;
-        private Vector3[] sectionNorms;
+        private Vector3[] sectionNormals;
+        private Vector3[] sectionTangents;
         private Vector2[] sectionUV;
         private int[] sectionTris;
         private int[] bodyTris;
@@ -192,6 +191,7 @@ namespace CarnationVariableSectionPart
 
         private Vector3[] vertices;
         private Vector3[] normals;
+        private Vector3[] tangents;
         private Vector2[] uv;
         private int[] triangles;
 
@@ -202,6 +202,7 @@ namespace CarnationVariableSectionPart
 
         private ModuleCarnationVariablePart cvsp;
         private bool buildStarted = false;
+        private bool[] isSectionVisible = new bool[] { true, true };
         public static bool RecalcNorm;
         private Quaternion qSection1Rotation;
         private Quaternion qSection1InverseRotation;
@@ -221,6 +222,7 @@ namespace CarnationVariableSectionPart
         {
             cvsp = variablePart;
             buildStarted = true;
+            for (int i = 0; i < isSectionVisible.Length; i++) isSectionVisible[i] = true;
             Debug.Log("[CarnationVariableSectionPart] newing MeshBuilder");
 
 
@@ -243,7 +245,15 @@ namespace CarnationVariableSectionPart
             }
             Debug.Log("[CarnationVariableSectionPart] newed MeshBuilder");
         }
-
+        /// <summary>
+        /// 无奈KSP存档不支持数组类型
+        /// </summary>
+        /// <param name="hideflag"></param>
+        internal void SetHideSections(Vector2 hideflag)
+        {
+            isSectionVisible[0] = hideflag.x > 0;
+            isSectionVisible[1] = hideflag.y > 0;
+        }
         private CVSPMeshBuilder()
         {
             RoundRadius = new float[] { 0, 0, 0, 0, 0, 0, 0, 0 };
@@ -254,8 +264,6 @@ namespace CarnationVariableSectionPart
                 temp.Add(new CVSPBodyEdge(i));
             bodySides = temp.ToArray();
             temp.Clear();
-
-            sectionMesh = new Mesh();
         }
 
         private void InstantiateMesh()
@@ -273,52 +281,53 @@ namespace CarnationVariableSectionPart
         }
         private void MergeSectionAndBody()
         {
+            //顶点数量
+            int count = sectionVerts.Length;
+            for (int i = 0; i < BodySides; i++) count += bodySides[i].vertices.Length;
+            vertices = new Vector3[count];
+            uv = new Vector2[count];
+            normals = new Vector3[count];
+            tangents = new Vector3[count];
+
+            RecalculateNormals(sectionVerts, sectionTris, ref sectionNormals);
+            RecalculateTangents(sectionVerts, sectionUV, sectionTris, ref sectionTangents);
+
+            count = sectionTris.Length;
+            for (int i = 0; i < BodySides; i++) count += bodySides[i].triangles.Length;
+            triangles = new int[count];
+            bodyTris = new int[count - sectionTris.Length];
+
+            sectionVerts.CopyTo(vertices, 0);
+            sectionUV.CopyTo(uv, 0);
+            sectionNormals.CopyTo(normals, 0);
+            sectionTangents.CopyTo(tangents, 0);
+            sectionTris.CopyTo(triangles, 0);
+            var vOffset = sectionVerts.Length;
+            var tOffset = sectionTris.Length;
+            for (int i = 0; i < 4; i++)
             {
-                int count = sectionVerts.Length;
-                for (int i = 0; i < BodySides; i++) count += bodySides[i].vertices.Length;
-                vertices = new Vector3[count];
-                uv = new Vector2[count];
-                normals = new Vector3[count];
-                sectionMesh.vertices = sectionVerts;
-                sectionMesh.triangles = sectionTris;
-                sectionMesh.RecalculateNormals();
-                sectionNorms = sectionMesh.normals;
-
-                count = sectionTris.Length;
-                for (int i = 0; i < BodySides; i++) count += bodySides[i].triangles.Length;
-                triangles = new int[count];
-                bodyTris = new int[count - sectionTris.Length];
-
-                sectionVerts.CopyTo(vertices, 0);
-                sectionUV.CopyTo(uv, 0);
-                sectionNorms.CopyTo(normals, 0);
-                sectionTris.CopyTo(triangles, 0);
-                var vOffset = sectionVerts.Length;
-                var tOffset = sectionTris.Length;
-                for (int i = 0; i < 4; i++)
+                var b = bodySides[i];
+                b.vertices.CopyTo(vertices, vOffset);
+                b.uv.CopyTo(uv, vOffset);
+                b.normals.CopyTo(normals, vOffset);
+                b.tangents.CopyTo(tangents, vOffset);
+                b.triangles.CopyTo(triangles, tOffset);
+                for (int j = 0; j < b.triangles.Length; j++)
                 {
-                    var b = bodySides[i];
-                    b.vertices.CopyTo(vertices, vOffset);
-                    b.uv.CopyTo(uv, vOffset);
-                    b.normals.CopyTo(normals, vOffset);
-                    b.triangles.CopyTo(triangles, tOffset);
-                    for (int j = 0; j < b.triangles.Length; j++)
-                    {
-                        triangles[j + tOffset] += vOffset;
-                    }
-                    vOffset += b.vertices.Length;
-                    tOffset += b.triangles.Length;
+                    triangles[j + tOffset] += vOffset;
                 }
-                for (int i = 0; i < bodyTris.Length; i++)
-                    bodyTris[i] = triangles[i + sectionTris.Length];
+                vOffset += b.vertices.Length;
+                tOffset += b.triangles.Length;
             }
+            for (int i = 0; i < bodyTris.Length; i++)
+                bodyTris[i] = triangles[i + sectionTris.Length];
         }
         /// <summary>
         /// 创建截面
         /// </summary>
         /// <param name="cornerID">0~8，角点的编号</param>
         /// <param name="radiusNormalized">0~1的圆角大小</param>
-        private void BuildSection(int cornerID, float radiusNormalized)
+        private void BuildSectionCorner(int cornerID, float radiusNormalized)
         {
             //顶点ID
             var corner = sectionCorners[cornerID];
@@ -485,15 +494,18 @@ namespace CarnationVariableSectionPart
         {
             var widthGreater0 = cvsp.Section0Width > cvsp.Section0Height;
             var widthGreater1 = cvsp.Section1Width > cvsp.Section1Height;
-            for (int i = 0; i < sectionCorners.Length; i++)
+            //跳过不可见的截面的计算
+            int start = isSectionVisible[0] ? 0 : (isSectionVisible[1] ? 4 : 8);
+            int end = isSectionVisible[1] ? 8 : 4;
+            for (; start < end; start++)
             {
-                float num = i > 3 ? -1 : 1f;
-                var corner = sectionCorners[i];
+                float num = start > 3 ? -1 : 1f;
+                var corner = sectionCorners[start];
                 for (int j = 0; j < corner.Length; j++)
                 {
                     float x;
                     float z;
-                    if (i > 3)
+                    if (start > 3)
                     {
                         x = sectionVerts[corner[j]].x - cvsp.Run;
                         z = sectionVerts[corner[j]].z - cvsp.Raise;
@@ -503,7 +515,7 @@ namespace CarnationVariableSectionPart
                         x = sectionVerts[corner[j]].x;
                         z = sectionVerts[corner[j]].z;
                     }
-                    if (i > 3)
+                    if (start > 3)
                     {
                         var v = qSection1InverseRotation * new Vector3(x, 0, z);
                         x = v.x;
@@ -511,7 +523,7 @@ namespace CarnationVariableSectionPart
                     }
                     if (!cvsp.SectionTiledMapping)
                     {
-                        if (i < 4)
+                        if (start < 4)
                         {
                             if (widthGreater0)
                             {
@@ -544,16 +556,18 @@ namespace CarnationVariableSectionPart
             }
         }
         /// <summary>
-        /// 删去Mesh中有边长0的三角形，并保持子网格的分配
+        /// 删去Mesh中有边长0的三角形，并分配子网格
         /// </summary>
         /// <param name="separater">两个子网格的三角形索引从separater分开</param>
-        private void Optimize(int separater)
+        /// <returns>返回优化后模型的三角形索引中，子网格从哪个位置分开</returns>
+        private int Optimize(int separater)
         {
+            int result = 0;
             int optimizedInSub0 = 0;
             bool[] toOptimize = new bool[triangles.Length / 3];
             for (int i = 0; i < toOptimize.Length; i++) toOptimize[i] = false;
             int optimized = 0;
-            for (int i = 0; i < triangles.Length; i += 3)
+            for (int i = 0; i < triangles.Length - 3; i += 3)
                 if (Has0Edge(triangles, vertices, i))
                 {
                     toOptimize[i / 3] = true;
@@ -589,6 +603,7 @@ namespace CarnationVariableSectionPart
             //剔除有一条边边长为0的三角形，保持其它intact
             Vector3[] optimizedVerts = new Vector3[vertices.Length - optimized];
             Vector3[] optimizedNorms = new Vector3[optimizedVerts.Length];
+            Vector4[] optimizedTangents = new Vector4[optimizedVerts.Length];
             Vector2[] optimizedUV = new Vector2[optimizedVerts.Length];
             j = 0;
             for (int i = 0; i < vertices.Length; i++)
@@ -596,6 +611,7 @@ namespace CarnationVariableSectionPart
                 {
                     optimizedVerts[j] = vertices[i];
                     optimizedNorms[j] = normals[i];
+                    optimizedTangents[j] = VectorCopy(tangents[i], 1f);
                     optimizedUV[j] = uv[i];
                     j++;
                 }
@@ -607,8 +623,11 @@ namespace CarnationVariableSectionPart
             mesh.vertices = optimizedVerts;
             mesh.uv = optimizedUV;
             mesh.normals = optimizedNorms;
+            mesh.tangents = optimizedTangents;
             mesh.triangles = optimizedTris;
             mesh.subMeshCount = 2;
+            //计算出(子网格0的三角形个数*3)作为结果返回
+            result = separater - optimizedInSub0;
             int[] sub = new int[separater - optimizedInSub0];
             for (int i = 0; i < sub.Length; i++)
                 sub[i] = optimizedTris[i];
@@ -620,9 +639,108 @@ namespace CarnationVariableSectionPart
             mesh.SetTriangles(sub, 1);
             mesh.RecalculateBounds();
             if (RecalcNorm) mesh.RecalculateNormals();
-            //   mesh.RecalculateTangents();
-            //Debug.Log("Tris:" + triangles.Length / 3 + "\tAfter:" + optimizedTris.Length / 3);
-            //Debug.Log("Verts:" + vertices.Length + "\tAfter:" + optimizedVerts.Length);
+            return result;
+        }
+        static DateTime d = new DateTime(2000, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+        static double now;
+        static void GetNow() => now = ((DateTime.UtcNow - d).TotalMilliseconds);
+        static double GetTimePassed()
+        {
+            var old = now;
+            GetNow();
+            return now-old;
+        }
+        public void Update()
+        {
+            GetNow();
+            //扭转四元数，也代表了截面1的旋转
+            qSection1Rotation = Quaternion.AngleAxis(cvsp.Twist, Vector3.up);
+            qSection1InverseRotation = Quaternion.Inverse(qSection1Rotation);
+            for (int i = 0; i < RoundRadius.Length; i++) BuildSectionCorner(i, RoundRadius[i]);
+            for (int i = 0; i < RoundRadius.Length; i++) oldRoundRadius[i] = RoundRadius[i];
+            Debug.Log($"1.BuildSectionCorner:\t\t{GetTimePassed():F2} ms");
+            OptimizeSections();
+            Debug.Log($"2.OptimizeSections:\t\t{GetTimePassed():F2} ms");
+            ModifySections();
+            Debug.Log($"3.ModifySections:\t\t{GetTimePassed():F2} ms");
+            BuildBody();
+            Debug.Log($"4.BuildBody:\t\t\t{GetTimePassed():F2} ms");
+            CorrectSectionUV();
+            Debug.Log($"5.CorrectSectionUV:\t\t{GetTimePassed():F2} ms");
+            MergeSectionAndBody();
+            Debug.Log($"6.MergeSectionAndBody:\t{GetTimePassed():F2} ms");
+            var sepa = sectionTris.Length - DeleteHiddenSection();
+            Debug.Log($"7.DeleteHiddenSection:\t{GetTimePassed():F2} ms");
+            Optimize(sepa);
+            Debug.Log($"8.Optimize:\t\t\t{GetTimePassed():F2} ms");
+        }
+        private int DeleteHiddenSection()
+        {
+            int deleteStart;
+            if (isSectionVisible[0])
+                if (isSectionVisible[1])
+                    return 0;
+                else
+                    deleteStart = sectionTris.Length / 2;
+            else
+                deleteStart = 0;
+            //除非都不可见，不然只删去一半
+            int deleteEnd = deleteStart + (!isSectionVisible[0] && !isSectionVisible[1] ? sectionTris.Length : sectionTris.Length / 2);
+            int trisDeleted = deleteEnd - deleteStart;
+            int countDeleted;
+            if (!isSectionVisible[0] && !isSectionVisible[1]) countDeleted = sectionVerts.Length;
+            else countDeleted = sectionVerts.Length / 2;
+            for (int i = deleteEnd; i < triangles.Length; i++)
+                triangles[i] -= countDeleted;
+            int[] newTris = new int[triangles.Length - trisDeleted];
+            //拷贝三角形数组到新数组
+            for (int i = 0; i < deleteStart; i++)
+                newTris[i] = triangles[i];
+            for (int i = deleteEnd; i < triangles.Length; i++)
+                newTris[i - trisDeleted] = triangles[i];
+            //标记是否删除顶点
+            bool[] vertDeleteFlag = new bool[sectionVerts.Length];
+            for (int i = 0; i < vertDeleteFlag.Length; vertDeleteFlag[i++] = false) ;
+            //标记被删除三角形的顶点
+            for (int i = deleteStart; i < deleteEnd; i++)
+            {
+                vertDeleteFlag[triangles[i]] = true;
+            }
+            //统计在sectionVerts.Length内的被删除顶点数
+            countDeleted = 0;
+            for (int i = 0; i < vertDeleteFlag.Length; i++)
+                if (vertDeleteFlag[i]) countDeleted++;
+            //新顶点数组
+            Vector3[] newVerts = new Vector3[vertices.Length - countDeleted];
+            Vector3[] newNorms = new Vector3[vertices.Length - countDeleted];
+            Vector3[] newTagts = new Vector3[vertices.Length - countDeleted];
+            Vector2[] newUVs = new Vector2[vertices.Length - countDeleted];
+            //j是当前删除掉的点数量
+            int j = 0;
+            j = 0;
+            //拷贝顶点数组 TODO: 点删减了，三角形索引对应还是老的编号当然超界
+            for (int i = 0; i < vertices.Length; i++)
+                if (i >= vertDeleteFlag.Length || !vertDeleteFlag[i])
+                {
+                    //老编号-删除数量=新编号
+                    newVerts[i - j] = vertices[i];
+                    newNorms[i - j] = normals[i];
+                    newTagts[i - j] = tangents[i];
+                    newUVs[i - j] = uv[i];
+                }
+                else
+                    j++;
+            triangles = newTris;
+            vertices = newVerts;
+            normals = newNorms;
+            tangents = newTagts;
+            uv = newUVs;
+            return trisDeleted;
+        }
+
+        internal void MakeDynamic()
+        {
+            mesh.MarkDynamic();
         }
         public static Vector3 VectorCopy(Vector3 origin)
         {
@@ -631,6 +749,10 @@ namespace CarnationVariableSectionPart
         public static Vector2 VectorCopy(Vector2 origin)
         {
             return new Vector2(origin.x, origin.y);
+        }
+        public static Vector4 VectorCopy(Vector3 origin, float w)
+        {
+            return new Vector4(origin.x, origin.y, origin.z, w);
         }
         public static bool IsZero(float num)
         {
@@ -648,27 +770,53 @@ namespace CarnationVariableSectionPart
             var s2 = triangles[start + 2];
             return IsIdentical(vertices[s], vertices[s1]) || IsIdentical(vertices[s], vertices[s2]) || IsIdentical(vertices[s2], vertices[s1]);
         }
-        protected int[] RecalculateNormals(Vector3 verts, int[] tris)
+        internal static void RecalculateNormals(Vector3[] verts, int[] tris, ref Vector3[] normals)
         {
-            return null;
+            if (normals == null || normals.Length != verts.Length)
+                normals = new Vector3[verts.Length];
+            for (int i = 0; i < normals.Length; i++)
+                normals[i] = Vector3.zero;
+            for (int i = 0; i < tris.Length; i += 3)
+            {
+                int n0 = tris[i];
+                int n1 = tris[i + 1];
+                int n2 = tris[i + 2];
+                Vector3 v0 = verts[n0] - verts[n1];
+                Vector3 v1 = verts[n1] - verts[n2];
+                Vector3 n = Vector3.Cross(v0, v1).normalized;
+                normals[n0] += n;
+                normals[n1] += n;
+                normals[n2] += n;
+            }
+            for (int i = 0; i < normals.Length; i++)
+                normals[i].Normalize();
         }
-        public void Update()
+        /// <summary>
+        /// 取切线为U正方向
+        /// </summary>
+        internal static void RecalculateTangents(Vector3[] verts, Vector2[] uvs, int[] tris, ref Vector3[] tangents)
         {
-            //扭转四元数，也代表了截面1的旋转
-            qSection1Rotation = Quaternion.AngleAxis(cvsp.Twist, Vector3.up);
-            qSection1InverseRotation = Quaternion.Inverse(qSection1Rotation);
-            for (int i = 0; i < RoundRadius.Length; i++) BuildSection(i, RoundRadius[i]);
-            for (int i = 0; i < RoundRadius.Length; i++) oldRoundRadius[i] = RoundRadius[i];
-            OptimizeSections();
-            ModifySections();
-            BuildBody();
-            CorrectSectionUV();
-            MergeSectionAndBody();
-            Optimize(sectionTris.Length);
-        }
-        internal void MakeDynamic()
-        {
-            mesh.MarkDynamic();
+            if (tangents == null || tangents.Length != uvs.Length)
+                tangents = new Vector3[uvs.Length];
+            for (int i = 0; i < tangents.Length; i++)
+                tangents[i] = Vector3.zero;
+            for (int i = 0; i < tris.Length; i += 3)
+            {
+                int n0 = tris[i];
+                int n1 = tris[i + 1];
+                int n2 = tris[i + 2];
+                Vector2 t1 = uvs[n0] - uvs[n1];
+                Vector2 t2 = uvs[n1] - uvs[n2];
+                Vector3 m1 = verts[n0] - verts[n1];
+                Vector3 m2 = verts[n1] - verts[n2];
+                var tangent = ((t2.y * m1) - (t1.y * m2)) / Mathf.Max((t1.x * t2.y) - (t2.x * t1.y), float.MinValue);
+                //var tangent = ((t2.x * m1) - (t1.x * m2)) / Mathf.Max((t1.y * t2.x) - (t2.y * t1.x), float.MinValue);
+                tangents[n0] += tangent.normalized;
+                tangents[n1] += tangent.normalized;
+                tangents[n2] += tangent.normalized;
+            }
+            for (int i = 0; i < tangents.Length; i++)
+                tangents[i].Normalize();
         }
     }
 }

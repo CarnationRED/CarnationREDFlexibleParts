@@ -35,7 +35,7 @@ namespace CarnationVariableSectionPart
         private static GameObject prefab;
         private GameObject partSection0, partSection1;
         private GameObject section0, section1;
-        private bool mouseDragging = false;
+        public bool mouseDragging = false;
         private float lastTwist;
         private HandleGizmo currentHandle;
         private ModuleCarnationVariablePart partModule;
@@ -144,7 +144,7 @@ namespace CarnationVariableSectionPart
             {
                 Shader[] objects = www.assetBundle.LoadAllAssets<Shader>();
                 for (int i = 0; i < objects.Length; ++i)
-                    if (objects[i].name.EndsWith("Bumped"))
+                    if (objects[i].name.EndsWith("Bumped Specular (Mapped)"))
                     {
                         bumpedSpecShader = objects[i];
                         Debug.Log($"[CarnationVariableSectionPart] Bumped Specular shader \"{BumpedShader.name}\" loaded. Shader supported? {BumpedShader.isSupported}");
@@ -153,7 +153,7 @@ namespace CarnationVariableSectionPart
                 if (bumpedSpecShader == null)
                 {
                     Debug.Log("[CarnationVariableSectionPart] Bumped Specular shader load failed, shaders in assets: " + objects.Length);
-                    bumpedSpecShader = Shader.Find("KSP/Specular");
+                    bumpedSpecShader = Shader.Find("KSP/Bumped Specular (Mapped)");
                     if (bumpedSpecShader != null)
                         Debug.Log("[CarnationVariableSectionPart] Bumped Specular shader loaded from game memory");
                 }
@@ -236,7 +236,14 @@ namespace CarnationVariableSectionPart
                 Section0Width = partModule.Section0Width;
                 Section1Height = partModule.Section1Height;
                 Section1Width = partModule.Section1Width;
-                partModule.CornerRadius.CopyTo(CornerRadius, 0);
+                CornerRadius[0] = partModule.Section0Radius.x;
+                CornerRadius[1] = partModule.Section0Radius.y;
+                CornerRadius[2] = partModule.Section0Radius.z;
+                CornerRadius[3] = partModule.Section0Radius.w;
+                CornerRadius[4] = partModule.Section1Radius.x;
+                CornerRadius[5] = partModule.Section1Radius.y;
+                CornerRadius[6] = partModule.Section1Radius.z;
+                CornerRadius[7] = partModule.Section1Radius.w;
                 GAME_HIGHLIGHTFACTOR = GameSettings.PART_HIGHLIGHTER_BRIGHTNESSFACTOR;
                 Highlighting.Highlighter.HighlighterLimit = 0.05f;
             }
@@ -330,6 +337,7 @@ namespace CarnationVariableSectionPart
             cvsp.Raise = Instance.Raise;
             cvsp.Run = Instance.Run;
             cvsp.Length = Instance.Length;
+            cvsp.CornerRadius = Instance.CornerRadius;
         }
 
         internal static void OnPartDestroyed()
@@ -525,25 +533,32 @@ namespace CarnationVariableSectionPart
                     Run -= .025f;
                     Run = Mathf.Clamp(Run, -ModuleCarnationVariablePart.MaxSize, ModuleCarnationVariablePart.MaxSize);
                     partModule.Run = OffsetSnap(Run);
+                    goto IL_1;
                 }
                 else if (Input.GetKey(KeyCode.Keypad7))
                 {
                     Run += .025f;
                     Run = Mathf.Clamp(Run, -ModuleCarnationVariablePart.MaxSize, ModuleCarnationVariablePart.MaxSize);
                     partModule.Run = OffsetSnap(Run);
+                    goto IL_1;
                 }
                 else if (Input.GetKey(KeyCode.Keypad3))
                 {
                     Raise -= .025f;
                     Raise = Mathf.Clamp(Raise, -ModuleCarnationVariablePart.MaxSize, ModuleCarnationVariablePart.MaxSize);
                     partModule.Raise = OffsetSnap(Raise);
+                    goto IL_1;
                 }
                 else if (Input.GetKey(KeyCode.Keypad9))
                 {
                     Raise += .025f;
                     Raise = Mathf.Clamp(Raise, -ModuleCarnationVariablePart.MaxSize, ModuleCarnationVariablePart.MaxSize);
                     partModule.Raise = OffsetSnap(Raise);
+                    goto IL_1;
                 }
+                goto IL_2;
+                IL_1:
+                partModule.OnEditorMouseRelease();
             }
             else if (mouseDragging || partModule.PartParamChanged)
             {
@@ -551,10 +566,13 @@ namespace CarnationVariableSectionPart
                 if (Input.GetKeyUp(KeyCode.Mouse0))
                 {
                     mouseDragging = false;
+                partModule.OnEditorMouseRelease();
                     if (currentHandle != null)
                         currentHandle.OnRelease();
                 }
             }
+        IL_2:
+            return;
         }
         private void CreateGizmos()
         {

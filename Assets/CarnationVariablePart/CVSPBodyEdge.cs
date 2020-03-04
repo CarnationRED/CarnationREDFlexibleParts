@@ -1,4 +1,5 @@
-﻿using UnityEngine;
+﻿using System;
+using UnityEngine;
 namespace CarnationVariableSectionPart
 {
     public partial class CVSPMeshBuilder
@@ -22,13 +23,12 @@ namespace CarnationVariableSectionPart
             public Vector3[] vertices;
             public Vector2[] uv;
             public Vector3[] normals;
-            public Mesh mesh;
+            public Vector3[] tangents;
             //TO-DO: 添加缩放、旋转的支持，因为这个类涉及法线计算，所以必须在这里实现缩放、扭转等等
 
             public CVSPBodyEdge(int id)
             {
                 Id = id;
-                mesh = new Mesh();
             }
             /// <summary>
             /// 使用在两个截面上的两组顶点索引，编织截面间的一个网格带。网格带的中部可以由r0和r1控制生成一个棱
@@ -87,24 +87,24 @@ namespace CarnationVariableSectionPart
                     //边长，用于UV计算
                     float length0;
                     float length1;
-                    if (!param.RealWorldMapping)
-                    {
-                        //使用矫正的边长计算UV
-                        length0 = ScaledDistance(vertices[i], vertices[i + 2], param, 0);
-                        length1 = ScaledDistance(vertices[i + 1], vertices[i + 3], param, 1);
-                    }
-                    else
+                    if (param.RealWorldMapping)
                     {
                         //使用实际边长计算UV，真实世界贴图坐标
                         length0 = Vector3.Distance(vertices[i], vertices[i + 2]);
                         length1 = Vector3.Distance(vertices[i + 1], vertices[i + 3]);
                     }
+                    else
+                    {
+                        //使用矫正的边长计算UV
+                        length0 = ScaledDistance(vertices[i], vertices[i + 2], param, 0);
+                        length1 = ScaledDistance(vertices[i + 1], vertices[i + 3], param, 1);
+                    }
                     if (param.CornerUVCorrection)
                         if (i > 0 && i / 2 < vertID0.Length - 2)
                         {
                             //矫正圆角处的UV，达到圆角大小改变，圆角处UV增量也不变的效果
-                            length0 *= perimeterSharp / perimeterRound;
-                            length1 *= perimeterSharp / perimeterRound;
+                            length0 *= PerimeterSharp / PerimeterRound;
+                            length1 *= PerimeterSharp / PerimeterRound;
                         }
                     //UV增加一个边长
                     uvStart0 += length0;
@@ -185,13 +185,8 @@ namespace CarnationVariableSectionPart
                      //triangles[triID * 3 + 3] = index;
                     }
                 }
-                //mesh完全用来计算法线了
-                mesh.Clear();
-                mesh.vertices = vertices;
-                mesh.triangles = triangles;
-                mesh.uv = uv;
-                mesh.RecalculateNormals();
-                normals = mesh.normals;
+                CVSPMeshBuilder.RecalculateNormals(vertices, triangles, ref normals);
+                CVSPMeshBuilder.RecalculateTangents(vertices, uv, triangles, ref tangents);
             }
             /// <summary>
             /// 只考虑了x、z坐标
@@ -221,15 +216,6 @@ namespace CarnationVariableSectionPart
             /// <param name="n4">截面1上结束点的法线</param>
             public void SetEndsNorms(Vector3 n1, Vector3 n2, Vector3 n3, Vector3 n4, float r0, float r1, ModuleCarnationVariablePart param)
             {
-                //    CopyYZComponent(n1, ref normals[0]);
-                //    CopyYZComponent(n1, ref normals[2]);
-                //    CopyYZComponent(n2, ref normals[normals.Length - additionVert - 4]);
-                //    CopyYZComponent(n2, ref normals[normals.Length - additionVert - 2]);
-                //    CopyYZComponent(n3, ref normals[1]);
-                //    CopyYZComponent(n3, ref normals[3]);
-                //    CopyYZComponent(n4, ref normals[normals.Length - additionVert - 3]);
-                //    CopyYZComponent(n4, ref normals[normals.Length - additionVert - 1]);
-                //return;
                 if (IsZero(1f - r0))
                 {
                     normals[0] = n1;
@@ -258,15 +244,34 @@ namespace CarnationVariableSectionPart
                     normals[normals.Length - additionVert - 3] = n4;
                     normals[normals.Length - additionVert - 1] = n4;
                 }
+                CorrectTangent(0);
+                CorrectTangent(2);
+                CorrectTangent(normals.Length - additionVert - 4);
+                CorrectTangent(normals.Length - additionVert - 2);
+                CorrectTangent(1);
+                CorrectTangent(3);
+                CorrectTangent(normals.Length - additionVert - 3);
+                CorrectTangent(normals.Length - additionVert - 1);
             }
             /// <summary>
-            /// 将result绕Y轴旋转到和from最近的位置
+            /// 根据法线矫正切线
             /// </summary>
-            /// <param name="from"></param>
-            /// <param name="result"></param>
-            private static void CopyXZComponent(Vector3 from, ref Vector3 result)
+            /// <param name="id">顶点编号</param>
+            private void CorrectTangent(int id)
             {
-                var q = Quaternion.FromToRotation(new Vector3(result.x, 0, result.z), new Vector3(from.x, 0, from.z));
+                var axis = Vector3.Cross(tangents[id], normals[id]);
+                var q = Quaternion.AngleAxis(Vector3.SignedAngle(tangents[id], normals[id], axis) - 90f, axis);
+                tangents[id] = q * tangents[id];
+            }
+
+            /// <summary>
+            /// 将result绕Y轴旋转到和target最近的位置
+            /// </summary>
+            /// <param name="target"></param>
+            /// <param name="result"></param>
+            private static void CopyXZComponent(Vector3 target, ref Vector3 result)
+            {
+                var q = Quaternion.FromToRotation(new Vector3(result.x, 0, result.z), new Vector3(target.x, 0, target.z));
                 result = q * result;
             }
         }
