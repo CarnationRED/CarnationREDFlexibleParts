@@ -521,7 +521,7 @@ namespace CarnationVariableSectionPart
                 UpdateCoM();
 
                 Collider.sharedMesh = null;
-               Collider.sharedMesh = Mf.mesh;
+                Collider.sharedMesh = Mf.mesh;
                 if (HighLogic.LoadedSceneIsEditor)
                     foreach (var syc in part.symmetryCounterparts)
                     {
@@ -641,8 +641,9 @@ namespace CarnationVariableSectionPart
             }
             else
                 UpdateResource(tankType, totalMaxAmount);
-            if (HighLogic.LoadedSceneIsEditor && costWidget)
-                onShipModified.Invoke(costWidget, new object[] { part.ship });
+            if (part.isAttached)
+                if (HighLogic.LoadedSceneIsEditor && costWidget)
+                    onShipModified.Invoke(costWidget, new object[] { part.ship });
         }
         /// <summary>
         /// 在开始编辑前计算、保存本零件节点和相连零件对应节点的相对偏移、旋转，用于编辑时更新相连零件的位置
@@ -861,7 +862,6 @@ namespace CarnationVariableSectionPart
         }
         private void OnDestroy()
         {
-            return;
             CVSPEditorTool.OnPartDestroyed();
             //throws exception when game killed
             Debug.Log("[CarnationVariableSectionPart] Part Module Destroyed!!!!!!!");
@@ -1048,10 +1048,13 @@ namespace CarnationVariableSectionPart
                 CornerRadius[7] = Section1Radius.w;
             }
             MeshBuilder.StartBuilding(Mf, this);
-            if (HighLogic.LoadedSceneIsEditor)
-                MeshBuilder.MakeDynamic();
+            //if (HighLogic.LoadedSceneIsEditor)
+            MeshBuilder.MakeDynamic();
             BackupParametersBeforeEdit();
             GetNodePairsTransform();
+            //如果本零件刚刚复制了别的零件的尺寸形状，则需要更新位置
+            if (CVSPEditorTool.PreserveParameters)
+                UpdatePartsPosition();
             //Secttion0Transform.localPosition = Vector3.zero;
             //Secttion1Transform.localPosition = Vector3.zero;
         }
@@ -1064,8 +1067,8 @@ namespace CarnationVariableSectionPart
             Vector2 result = new Vector2(1, 1);
             UpdateSectionsVisiblity(nodeIDSec0);
             UpdateSectionsVisiblity(nodeIDSec1);
-            result.x = calculatedSectionVisiblity[0].Value ? -1 : 1;
-            result.y = calculatedSectionVisiblity[1].Value ? -1 : 1;
+            result.x = calculatedSectionVisiblity[0].Value ? +1 : -1;
+            result.y = calculatedSectionVisiblity[1].Value ? +1 : -1;
             return result;
         }
 
@@ -1133,7 +1136,7 @@ namespace CarnationVariableSectionPart
             //自己的对应截面设为可见
             calculatedSectionVisiblity[nodeID] = true;
         }
-        private static bool IsIndentical(float f1, float f2) => Mathf.Abs(f1 - f2) < 1e-6f;
+        private static bool IsIndentical(float f1, float f2) => Mathf.Abs(f1 - f2) < 1e-2f;
         private float GetSectionAspectRatio(int secID)
         {
             var w = secID == 0 ? Section0Width : Section1Width;

@@ -677,8 +677,8 @@ namespace CarnationVariableSectionPart
         private int DeleteHiddenSection()
         {
             int deleteStart;
-            if (isSectionVisible[0])
-                if (isSectionVisible[1])
+            if (isSectionVisible[1])
+                if (isSectionVisible[0])
                     return 0;
                 else
                     deleteStart = sectionTris.Length / 2;

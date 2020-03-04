@@ -236,16 +236,19 @@ namespace CarnationVariableSectionPart
                 Section0Width = partModule.Section0Width;
                 Section1Height = partModule.Section1Height;
                 Section1Width = partModule.Section1Width;
-                CornerRadius[0] = partModule.Section0Radius.x;
-                CornerRadius[1] = partModule.Section0Radius.y;
-                CornerRadius[2] = partModule.Section0Radius.z;
-                CornerRadius[3] = partModule.Section0Radius.w;
-                CornerRadius[4] = partModule.Section1Radius.x;
-                CornerRadius[5] = partModule.Section1Radius.y;
-                CornerRadius[6] = partModule.Section1Radius.z;
-                CornerRadius[7] = partModule.Section1Radius.w;
+                if (!PreserveParameters)
+                {
+                    CornerRadius[0] = partModule.Section0Radius.x;
+                    CornerRadius[1] = partModule.Section0Radius.y;
+                    CornerRadius[2] = partModule.Section0Radius.z;
+                    CornerRadius[3] = partModule.Section0Radius.w;
+                    CornerRadius[4] = partModule.Section1Radius.x;
+                    CornerRadius[5] = partModule.Section1Radius.y;
+                    CornerRadius[6] = partModule.Section1Radius.z;
+                    CornerRadius[7] = partModule.Section1Radius.w;
+                }
                 GAME_HIGHLIGHTFACTOR = GameSettings.PART_HIGHLIGHTER_BRIGHTNESSFACTOR;
-                Highlighting.Highlighter.HighlighterLimit = 0.05f;
+                Highlighting.Highlighter.HighlighterLimit = 0.2f;
             }
         }
         internal void Deactivate()
@@ -338,6 +341,14 @@ namespace CarnationVariableSectionPart
             cvsp.Run = Instance.Run;
             cvsp.Length = Instance.Length;
             cvsp.CornerRadius = Instance.CornerRadius;
+            cvsp.Section0Radius.x = Instance.CornerRadius[0];
+            cvsp.Section0Radius.y = Instance.CornerRadius[1];
+            cvsp.Section0Radius.z = Instance.CornerRadius[2];
+            cvsp.Section0Radius.w = Instance.CornerRadius[3];
+            cvsp.Section1Radius.x = Instance.CornerRadius[4];
+            cvsp.Section1Radius.y = Instance.CornerRadius[5];
+            cvsp.Section1Radius.z = Instance.CornerRadius[6];
+            cvsp.Section1Radius.w = Instance.CornerRadius[7];
         }
 
         internal static void OnPartDestroyed()
@@ -557,7 +568,7 @@ namespace CarnationVariableSectionPart
                     goto IL_1;
                 }
                 goto IL_2;
-                IL_1:
+            IL_1:
                 partModule.OnEditorMouseRelease();
             }
             else if (mouseDragging || partModule.PartParamChanged)
@@ -566,7 +577,7 @@ namespace CarnationVariableSectionPart
                 if (Input.GetKeyUp(KeyCode.Mouse0))
                 {
                     mouseDragging = false;
-                partModule.OnEditorMouseRelease();
+                    partModule.OnEditorMouseRelease();
                     if (currentHandle != null)
                         currentHandle.OnRelease();
                 }
