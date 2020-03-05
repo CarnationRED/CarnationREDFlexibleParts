@@ -4,6 +4,35 @@ using System;
 
 namespace CarnationVariableSectionPart
 {
+
+    public class FPSDisplay : MonoBehaviour
+    {
+        float deltaTime = 0.0f;
+        private GUIStyle style;
+        private Rect rect;
+
+        void Update()
+        {
+            deltaTime += (Time.unscaledDeltaTime - deltaTime) * 0.1f;
+        }
+        private void Start()
+        {
+            int w = Screen.width, h = Screen.height;
+            rect = new Rect(0, 0, w, h * 2 / 100);
+            style = new GUIStyle();
+            style.alignment = TextAnchor.UpperLeft;
+            style.fontSize = h * 2 / 100;
+            //new Color (0.0f, 0.0f, 0.5f, 1.0f);
+            style.normal.textColor = Color.red;
+        }
+        void OnGUI()
+        {
+            float msec = deltaTime * 1000.0f;
+            float fps = 1.0f / deltaTime;
+            string text = string.Format("{0:0.0} ms ({1:0.} fps)", msec, fps);
+            GUI.Label(rect, text, style);
+        }
+    }
     public class CVSPEditorTool : MonoBehaviour
     {
 #if !DEBUG
@@ -45,8 +74,8 @@ namespace CarnationVariableSectionPart
         public static bool EditorToolActivated = false;
         private static GameObject _gameObject = null;
         private static Shader bumpedSpecShader;
-        private float Twist, Length, Run, Raise, Section0Width, Section0Height, Section1Width, Section1Height;
-        private float[] CornerRadius = new float[8];
+        private static float Twist, Length, Run, Raise, Section0Width, Section0Height, Section1Width, Section1Height;
+        private static float[] CornerRadius = new float[8];
 
         public static CVSPEditorTool Instance
         {
@@ -57,6 +86,7 @@ namespace CarnationVariableSectionPart
                     _gameObject = new GameObject("CVSPPersist");
                     _gameObject.SetActive(false);
                     _Instance = _gameObject.AddComponent<CVSPEditorTool>();
+                    //DontDestroyOnLoad(new GameObject().AddComponent<FPSDisplay>().gameObject);
                     DontDestroyOnLoad(_gameObject);
                     Debug.Log("[CarnationVariableSectionPart] Editor Tool Loaded");
                 }
@@ -190,63 +220,16 @@ namespace CarnationVariableSectionPart
         {
             if (!EditorToolActivated)
             {
-                //for (int i = 0; i < partModule.Model.transform.childCount; i++)
-                //{
-                //    var t = partModule.Model.transform.GetChild(i);
-                //    if (t.name.StartsWith("section") && t.name.EndsWith("node"))
-                //    {
-                //        CVSPParameters.Destroy(t.gameObject);
-                //        i--;
-                //    }
-                //}
                 partModule = module;
-                //var t = _gameObject.transform.GetChild(0);
-                //while (t.childCount > 0)
-                //    t.GetChild(0).SetParent(partModule.Model.transform);
-                //t = _gameObject.transform.GetChild(1);
-                //while (t.childCount > 0)
-                //    t.GetChild(0).SetParent(partModule.Model.transform);
-                if (partModule == null)
-                {
-                    Debug.LogError("[CarnationVariableSectionPart] Can't find part module");
-                    return;
-                }
                 partModule.OnStartEditing();
-                PreserveParameters = false;
                 SetupGizmos();
                 CalcGizmosSize();
-
-                int c = 0;
-                for (int i = 0; i < partModule.Model.transform.childCount; i++)
-                {
-                    var t = partModule.Model.transform.GetChild(i);
-                    if (t.name.StartsWith("section") && t.name.EndsWith("node"))
-                        c++;
-                }
-                Debug.Log("[CarnationVariableSectionPart] Activating Tool, section*node: " + c);
 
                 _gameObject.SetActive(true);
                 EditorToolActivated = true;
                 GameUILocked = false;
-                Twist = partModule.Twist;
-                Raise = partModule.Raise;
-                Run = partModule.Run;
-                Length = partModule.Length;
-                Section0Height = partModule.Section0Height;
-                Section0Width = partModule.Section0Width;
-                Section1Height = partModule.Section1Height;
-                Section1Width = partModule.Section1Width;
-                if (!PreserveParameters)
-                {
-                    CornerRadius[0] = partModule.Section0Radius.x;
-                    CornerRadius[1] = partModule.Section0Radius.y;
-                    CornerRadius[2] = partModule.Section0Radius.z;
-                    CornerRadius[3] = partModule.Section0Radius.w;
-                    CornerRadius[4] = partModule.Section1Radius.x;
-                    CornerRadius[5] = partModule.Section1Radius.y;
-                    CornerRadius[6] = partModule.Section1Radius.z;
-                    CornerRadius[7] = partModule.Section1Radius.w;
-                }
+                CopyParamsFormPart();
+                PreserveParameters = false;
                 GAME_HIGHLIGHTFACTOR = GameSettings.PART_HIGHLIGHTER_BRIGHTNESSFACTOR;
                 Highlighting.Highlighter.HighlighterLimit = 0.2f;
             }
@@ -276,8 +259,9 @@ namespace CarnationVariableSectionPart
                         else if (t.name.EndsWith("1node"))
                             while (t.childCount > 0)
                                 t.GetChild(0).SetParent(section1.transform, false);
-                    if (section0.transform.childCount == 14 && section1.transform.childCount == 14)
-                        break;
+                    if (section0.transform.childCount == 14)
+                        if (section1.transform.childCount == 14)
+                            break;
                 }
                 partModule = null;
             }
@@ -289,8 +273,7 @@ namespace CarnationVariableSectionPart
                 Ray r;
                 r = EditorCamera.ScreenPointToRay(Input.mousePosition);
                 RaycastHit hit;
-                Debug.Log("[CarnationVariableSectionPart] Raycasting");
-                if (Physics.Raycast(r, out hit, 100f/*, 1 << ModuleCarnationVariablePart.CVSPEditorLayer*/))
+                if (Physics.Raycast(r, out hit, 100f, 1 << ModuleCarnationVariablePart.CVSPEditorLayer))
                 {
                     //part是模型的父级(model)的父级
                     //不能用hit.transform，不准确
@@ -298,14 +281,11 @@ namespace CarnationVariableSectionPart
                     var cvsp = go.GetComponent<ModuleCarnationVariablePart>();
                     if (cvsp != null)
                     {
-                        Debug.Log("[CarnationVariableSectionPart] Raycast to a CVSP");
                         if (EditorToolActivated)
                         {
-                            if (cvsp == Instance.partModule)
-                                Instance.Deactivate();
-                            else
+                            Instance.Deactivate();
+                            if (cvsp != Instance.partModule)
                             {
-                                Instance.Deactivate();
                                 PreserveParameters = Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.RightControl);
                                 //按下左Ctrl则复制参数
                                 if (PreserveParameters)
@@ -317,38 +297,49 @@ namespace CarnationVariableSectionPart
                         else
                             Instance.Activate(cvsp);
                     }
-                    else//调试用
-                    {
-                        go = hit.collider.transform.parent;
-                        if (go.TryGetComponent<MeshRenderer>(out MeshRenderer mr))
-                        {
-                            Debug.Log($"casted obj mat:{mr.sharedMaterial.shader.name}, color:{mr.sharedMaterial.color}");
-                        }
-                    }
                 }
                 LastCastTime = Time.time;
             }
         }
 
+        private void CopyParamsFormPart()
+        {
+            Twist = partModule.Twist;
+            Raise = partModule.Raise;
+            Run = partModule.Run;
+            Length = partModule.Length;
+            Section0Height = partModule.Section0Height;
+            Section0Width = partModule.Section0Width;
+            Section1Height = partModule.Section1Height;
+            Section1Width = partModule.Section1Width;
+            CornerRadius[0] = partModule.Section0Radius.x;
+            CornerRadius[1] = partModule.Section0Radius.y;
+            CornerRadius[2] = partModule.Section0Radius.z;
+            CornerRadius[3] = partModule.Section0Radius.w;
+            CornerRadius[4] = partModule.Section1Radius.x;
+            CornerRadius[5] = partModule.Section1Radius.y;
+            CornerRadius[6] = partModule.Section1Radius.z;
+            CornerRadius[7] = partModule.Section1Radius.w;
+        }
+
         private static void CopyParametersTo(ModuleCarnationVariablePart cvsp)
         {
-            cvsp.Section0Height = Instance.Section0Height;
-            cvsp.Section0Width = Instance.Section0Width;
-            cvsp.Section1Height = Instance.Section1Height;
-            cvsp.Section1Width = Instance.Section1Width;
-            cvsp.Twist = Instance.Twist;
-            cvsp.Raise = Instance.Raise;
-            cvsp.Run = Instance.Run;
-            cvsp.Length = Instance.Length;
-            cvsp.CornerRadius = Instance.CornerRadius;
-            cvsp.Section0Radius.x = Instance.CornerRadius[0];
-            cvsp.Section0Radius.y = Instance.CornerRadius[1];
-            cvsp.Section0Radius.z = Instance.CornerRadius[2];
-            cvsp.Section0Radius.w = Instance.CornerRadius[3];
-            cvsp.Section1Radius.x = Instance.CornerRadius[4];
-            cvsp.Section1Radius.y = Instance.CornerRadius[5];
-            cvsp.Section1Radius.z = Instance.CornerRadius[6];
-            cvsp.Section1Radius.w = Instance.CornerRadius[7];
+            cvsp.Section0Height = OffsetSnap(Section0Height);
+            cvsp.Section0Width = OffsetSnap(Section0Width);
+            cvsp.Section1Height = OffsetSnap(Section1Height);
+            cvsp.Section1Width = OffsetSnap(Section1Width);
+            cvsp.Twist = AngleSnap(Twist);
+            cvsp.Raise = OffsetSnap(Raise);
+            cvsp.Run = OffsetSnap(Run);
+            cvsp.Length = OffsetSnap(Length);
+            cvsp.Section0Radius.x = OffsetSnap(CornerRadius[0]);
+            cvsp.Section0Radius.y = OffsetSnap(CornerRadius[1]);
+            cvsp.Section0Radius.z = OffsetSnap(CornerRadius[2]);
+            cvsp.Section0Radius.w = OffsetSnap(CornerRadius[3]);
+            cvsp.Section1Radius.x = OffsetSnap(CornerRadius[4]);
+            cvsp.Section1Radius.y = OffsetSnap(CornerRadius[5]);
+            cvsp.Section1Radius.z = OffsetSnap(CornerRadius[6]);
+            cvsp.Section1Radius.w = OffsetSnap(CornerRadius[7]);
         }
 
         internal static void OnPartDestroyed()
@@ -358,8 +349,8 @@ namespace CarnationVariableSectionPart
         }
         private static float LastCastTime;
         private bool fineTune;
-        private float angleSnap;
-        private float offsetInterval;
+        private static float angleSnap;
+        private static float offsetInterval;
         private bool GameUILocked;
 
         private void OnModifierValueChanged(float value0, float value1, int id, int sectionID)
@@ -454,18 +445,44 @@ namespace CarnationVariableSectionPart
                             target += 2;
                         target += 3;
                     }
-                    CornerRadius[target] = Mathf.Clamp(CornerRadius[target] - r, 0, 1);
-                    partModule.CornerRadius[target] = OffsetSnap(CornerRadius[target]);
+                    float value = Mathf.Clamp(CornerRadius[target] - r, 0, 1);
+                    float snapped = OffsetSnap(CornerRadius[target]);
+                    bool applyAll = Input.GetKey(KeyCode.LeftShift);
+                    bool applySection = Input.GetKey(KeyCode.LeftControl);
+                    bool applyEdge = Input.GetKey(KeyCode.LeftAlt);
+                    partModule.setCornerRadius(target, snapped);
+                    CornerRadius[target] = value;
+                    int i = 0, l = 0;
+                    if (applyAll)
+                    {
+                        i = 0;
+                        l = 8;
+                    }
+                    else if (applySection)
+                    {
+                        i = target > 3 ? 4 : 0;
+                        l = i + 4;
+                    }
+                    else if (applyEdge)
+                    {
+                        i = target - (target > 3 ? 4 : -4);
+                        l = i + 1;
+                    }
+                    for (; i < l; i++)
+                    {
+                        CornerRadius[i] = value;
+                        partModule.setCornerRadius(i, snapped);
+                    }
                     break;
             }
         }
-        private float OffsetSnap(float val)
+        private static float OffsetSnap(float val)
         {
             if (GameSettings.VAB_USE_ANGLE_SNAP)
                 return Mathf.Round(val / offsetInterval) * offsetInterval;
             return val;
         }
-        private float AngleSnap(float val)
+        private static float AngleSnap(float val)
         {
             if (GameSettings.VAB_USE_ANGLE_SNAP)
                 return Mathf.Round(val / angleSnap) * angleSnap;
@@ -475,7 +492,7 @@ namespace CarnationVariableSectionPart
         {
             fineTune = Input.GetKey(KeyCode.LeftShift);
             angleSnap = fineTune ? EditorLogic.fetch.srfAttachAngleSnapFine : EditorLogic.fetch.srfAttachAngleSnap;
-            offsetInterval = fineTune ? .1f : .2f;
+            offsetInterval = fineTune ? .125f : .25f;
         }
         void LateUpdate()
         {
@@ -598,8 +615,6 @@ namespace CarnationVariableSectionPart
                     section1 = Instantiate<GameObject>(prefab);
                     section1.name = "section1";
                     section1.transform.SetParent(_gameObject.transform, false);
-                    DontDestroyOnLoad(section0);
-                    DontDestroyOnLoad(section1);
                 }
             }
         }

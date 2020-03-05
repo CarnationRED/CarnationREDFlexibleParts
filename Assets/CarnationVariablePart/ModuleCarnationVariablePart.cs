@@ -5,6 +5,7 @@ using UnityEngine;
 using System.Reflection;
 using System.Collections.Generic;
 using System.Text.RegularExpressions;
+using System.Runtime.Serialization.Formatters.Binary;
 
 namespace CarnationVariableSectionPart
 {
@@ -126,16 +127,47 @@ namespace CarnationVariableSectionPart
         }
         public Transform Section1Transform { get; private set; }
         public Transform Section0Transform { get; private set; }
-        private float[] oldCornerRadius = new float[8];
-        public float[] CornerRadius
+        private Vector4 oldSection1Radius = new Vector4();
+        private Vector4 oldSection0Radius = new Vector4();
+        private const int CountCorners = 8;
+        public float getCornerRadius(int id)
         {
-            //这个属性指向模型创建器的数组，应该只能在编辑器中或者是在加载飞船时被访问，正常飞行中不要访问
-            get => MeshBuilder.RoundRadius;
-            set
+            var sec = id > 3 ? Section1Radius : Section0Radius;
+            id %= 4;
+            switch (id)
             {
-                MeshBuilder.RoundRadius = value;
-                PartParamChanged = true;
+                case 0:
+                    return sec.x;
+                case 1:
+                    return sec.y;
+                case 2:
+                    return sec.z;
+                default:
+                    return sec.w;
             }
+        }
+        public void setCornerRadius(int id, float value)
+        {
+            bool b0 = id > 3;
+            var sec = b0 ? Section1Radius : Section0Radius;
+            id %= 4;
+            switch (id)
+            {
+                case 0:
+                    sec.x = Mathf.Clamp(value, 0, 1);
+                    break;
+                case 1:
+                    sec.y = Mathf.Clamp(value, 0, 1);
+                    break;
+                case 2:
+                    sec.z = Mathf.Clamp(value, 0, 1);
+                    break;
+                default:
+                    sec.w = Mathf.Clamp(value, 0, 1);
+                    break;
+            }
+            if (b0) Section1Radius = sec;
+            else Section0Radius = sec;
         }
         public bool CornerUVCorrection
         {
@@ -443,6 +475,7 @@ namespace CarnationVariableSectionPart
         private static Texture defaultEndDiffu, defaultEndNorma, defaultEndSpecu;
         private static Texture defaultEmptyNorm, defaultEmptySpec;
         private static bool DefaultTexuresLoaded = false;
+        private static bool forceUpdatedPos;
         private readonly bool UseSideTexture = true;
         private readonly bool UseEndTexture = true;
 
@@ -499,43 +532,16 @@ namespace CarnationVariableSectionPart
             if (MeshBuilder == null) return;
             if (PartParamChanged)
             {
-                for (int i = 0; i < CornerRadius.Length; i++)
-                {
-                    CornerRadius[i] = Mathf.Clamp(CornerRadius[i], 0, 1f);
-                    oldCornerRadius[i] = CornerRadius[i];
-                }
-                Section0Radius.x = CornerRadius[0];
-                Section0Radius.y = CornerRadius[1];
-                Section0Radius.z = CornerRadius[2];
-                Section0Radius.w = CornerRadius[3];
-                Section1Radius.x = CornerRadius[4];
-                Section1Radius.y = CornerRadius[5];
-                Section1Radius.z = CornerRadius[6];
-                Section1Radius.w = CornerRadius[7];
+                oldSection0Radius = Section0Radius;
+                oldSection1Radius = Section1Radius;
                 SectionSizes.x = Section0Width;
                 SectionSizes.y = Section0Height;
                 SectionSizes.z = Section1Width;
                 SectionSizes.w = Section1Height;
-                MeshBuilder.Update();
-                UpdateFuelTank();
-                UpdateCoM();
+                MeshBuilder.Update(Section0Radius, Section1Radius);
 
                 Collider.sharedMesh = null;
                 Collider.sharedMesh = Mf.mesh;
-                if (HighLogic.LoadedSceneIsEditor)
-                    foreach (var syc in part.symmetryCounterparts)
-                    {
-                        ModuleCarnationVariablePart cvsp = syc.FindModuleImplementing<ModuleCarnationVariablePart>();
-                        if (cvsp == null)
-                        {
-                            Debug.LogError("[CarnationVariableSectionPart] Module not found on symmetry counter parts");
-                            break;
-                        }
-                        cvsp.Mf.mesh = Mf.mesh;
-                        cvsp.CopyParams(this);
-                        cvsp.UpdateFuelTank();
-                        cvsp.UpdateCoM();
-                    }
                 PartParamChanged = false;
             }
         }
@@ -550,7 +556,6 @@ namespace CarnationVariableSectionPart
 
         private void UpdateCoM()
         {
-            if (HighLogic.LoadedSceneIsFlight) return;
             //part原点在截面0往下Length/2位置
             var mult0 = section0Area / (section0Area + section1Area);
             CoMOffset = Section0Transform.localPosition * mult0 + Section1Transform.localPosition * (1f - mult0);
@@ -595,22 +600,19 @@ namespace CarnationVariableSectionPart
         /// </summary>
         private void UpdateFuelTank()
         {
+            CalcSectionArea();
+            CalcVolume();
+            CalcSectionPerimeter();
+            CalcSurfaceArea();
+            totalMaxAmount = totalVolume * UnitPerVolume;
+            dryMass = surfaceArea * DryMassPerArea;
+            dryCost = dryMass * DryCostPerMass;
             if (HighLogic.LoadedSceneIsEditor)
             {
-                CalcSectionArea();
-                CalcVolume();
-                CalcSectionPerimeter();
-                CalcSurfaceArea();
-                totalMaxAmount = totalVolume * UnitPerVolume;
-                dryMass = surfaceArea * DryMassPerArea;
-                dryCost = dryMass * DryCostPerMass;
-                //if (HighLogic.LoadedSceneIsEditor)
-                //{
                 UpdateResources();
                 part.UpdateMass();
-                //}
                 if (part.PartActionWindow)
-                    part.PartActionWindow.displayDirty = true;
+                    part.PartActionWindow.displayDirty = true; ;
             }
         }
         private void UpdateResource(FuelType type, float maxAmount)
@@ -641,7 +643,7 @@ namespace CarnationVariableSectionPart
             }
             else
                 UpdateResource(tankType, totalMaxAmount);
-            if (part.isAttached)
+            if (part.localRoot == part && part.isAttached)
                 if (HighLogic.LoadedSceneIsEditor && costWidget)
                     onShipModified.Invoke(costWidget, new object[] { part.ship });
         }
@@ -652,7 +654,7 @@ namespace CarnationVariableSectionPart
         {
             var nodes = part.attachNodes;
             AttachNode oppsing, current;
-            current = nodes[nodeIDSec0];
+            current = node0;
             if ((oppsing = current.FindOpposingNode()) != null)
             {
                 nodeOppsingPartPosOld[nodeIDSec0] = oppsing.owner.transform.position;
@@ -664,7 +666,7 @@ namespace CarnationVariableSectionPart
                 nodePairsTranslationOld[nodeIDSec0] = oppsing.owner.transform.TransformPoint(oppsing.position)
                                                              - part.transform.TransformPoint(current.position);
             }
-            current = nodes[nodeIDSec1];
+            current = node1;
             if ((oppsing = current.FindOpposingNode()) != null)
             {
                 nodeOppsingPartPosOld[nodeIDSec1] = oppsing.owner.transform.position;
@@ -678,119 +680,92 @@ namespace CarnationVariableSectionPart
             }
         }
 
-        /// <summary>
-        /// 更新本零件的位置，更新连接到这个零件的零件位置
-        /// </summary>
-        private void UpdatePartsPosition()
-        {
-            //return;
-            Vector3 posChange;
-            Quaternion rotChange;
-            bool ParentOnNode0, ParentOnNode1;
-            AttachNode node0 = part.attachNodes[nodeIDSec0].FindOpposingNode();
-            AttachNode node1 = part.attachNodes[nodeIDSec1].FindOpposingNode();
-            ParentOnNode0 = node0 != null && part.parent != null && (node0.owner.persistentId == part.parent.persistentId);
-            ParentOnNode1 = node1 != null && part.parent != null && (node1.owner.persistentId == part.parent.persistentId);
-            Debug.Log("[CarnationVariableSectionPart] Part parent is on section" + (ParentOnNode0 ? "0" : (ParentOnNode1 ? "1" : "null")));
-            //如果截面0连的不是父物体，那么可能在截面1上连了父物体，也可能在表面节点连了父物体，也可能本零件就是根零件
-            if (!ParentOnNode0)
-            {
-                //在截面1上连了父物体。因为变形的Twist和Raise和Run都是只施加到截面1的，且零件原点与截面0随动，所以对本零件transfrom施加截面1变换的逆变换*2(绕截面1旋转)，对截面0连接的零件施加截面1变换的逆变换
-                if (ParentOnNode1)
-                {
-                    //编辑带来的旋转，世界坐标
-                    rotChange = Quaternion.AngleAxis(twistBeforeEdit - Twist, part.transform.up);
-                    //先旋转本零件，截面0位置不变，截面1位置会改变
-                    part.transform.rotation = rotChange * partWldRotBeforeEdit;
-                    //再计算截面1位置改变量，零件移动对应量，使得截面1保持原位
-                    part.transform.position = partWldPosBeforeEdit + (sec1WldPosBeforeEdit - (partWldPosBeforeEdit + part.transform.TransformVector(Section1Transform.localPosition)));
-                    //截面0上连了子物体
-                    if (node0 != null)
-                    {
-                        //世界坐标，截面0的偏移和旋转
-                        posChange = part.transform.TransformPoint(Section0Transform.localPosition) - sec0WldPosBeforeEdit;
-                        //移动截面0连接的零件
-                        goto IL_MovePartOnNode0;
-                    }
-                }
-                //在表面节点连了父物体，截面0连接了子物体。本零件位置施加施加-0.5倍的Raise和Run，对截面0连接的零件施加截面0的变换
-                else if (part.parent)
-                {
-                    posChange = new Vector3(-.5f * (Run - runBeforeEdit), 0, -.5f * (Raise - raiseBeforeEdit));
-                    part.transform.position = partWldPosBeforeEdit + partWldRotBeforeEdit * (posChange);
-                    //截面0上连了子物体
-                    if (node0 != null)
-                    {
-                        //编辑带来的旋转，世界坐标
-                        rotChange = Quaternion.identity;
-                        //世界坐标，截面0的偏移和旋转
-                        posChange = part.transform.TransformPoint(Section0Transform.localPosition) - sec0WldPosBeforeEdit;
-                        //移动截面0连接的零件
-                        goto IL_MovePartOnNode0;
-                    }
-                }
-                //本零件就是根零件，本零件位置不变，截面0连的零件随动
-                else
-                {
-                    //截面0上连了子物体
-                    if (node0 != null)
-                    {
-                        //编辑带来的旋转，世界坐标
-                        rotChange = Quaternion.identity;
-                        //世界坐标，截面0的偏移和旋转
-                        posChange = part.transform.TransformPoint(Section0Transform.localPosition) - sec0WldPosBeforeEdit;
-                        goto IL_MovePartOnNode0;
-                    }
-                    //移动截面1
-                    if (node1 != null)
-                    {
-                        //编辑带来的旋转，世界坐标
-                        rotChange = Quaternion.AngleAxis(Twist - twistBeforeEdit, part.transform.up);
-                        posChange = part.transform.TransformPoint(Section1Transform.localPosition) - sec1WldPosBeforeEdit;
-                        //移动截面1连接的零件
-                        goto IL_MovePartOnNode1;
-                    }
-                }
-            }
-            //截面0连了父级
-            else
-            {
-                //截面0上连了父级
-                //世界坐标，截面0的偏移和旋转
-                posChange = .5f * (Length - lengthBeforeEdit) * part.transform.up;
-                part.transform.position = partWldPosBeforeEdit - posChange;
-                //移动截面1
-                if (node1 != null)
-                {
-                    //编辑带来的旋转，世界坐标
-                    rotChange = Quaternion.AngleAxis(Twist - twistBeforeEdit, part.transform.up);
-                    posChange = part.transform.TransformPoint(Section1Transform.localPosition) - sec1WldPosBeforeEdit;
-                    //移动截面1连接的零件
-                    goto IL_MovePartOnNode1;
-                }
-            }
-            return;
-        IL_MovePartOnNode0:
-            node0.owner.transform.position = nodeOppsingPartPosOld[nodeIDSec0] + posChange + ((rotChange * nodePairsTranslationOld[nodeIDSec0]) - nodePairsTranslationOld[nodeIDSec0]);
-            node0.owner.transform.rotation = rotChange * nodeOppsingPartRotOld[nodeIDSec0];
-            Debug.Log("IL_MovePartOnNode0");
-            return;
-        IL_MovePartOnNode1:
-            node1.owner.transform.position = nodeOppsingPartPosOld[nodeIDSec1] + posChange + ((rotChange * nodePairsTranslationOld[nodeIDSec1]) - nodePairsTranslationOld[nodeIDSec1]);
-            node1.owner.transform.rotation = rotChange * nodeOppsingPartRotOld[nodeIDSec1];
-            Debug.Log("IL_MovePartOnNode1");
-            return;
-        }
+        private bool parentIsSelfy, parentOnNode0, parentOnNode1, parentOnSurfNode;
+        private AttachNode node0 => part.attachNodes[0];
+        private AttachNode node1 => part.attachNodes[1];
+        private AttachNode surfNode => part.srfAttachNode;
+        private AttachNode oppsingNode0, oppsingNode1;
 
-        private void UpdateAttchNodePos(List<AttachNode> nodes)
+        /// <summary>
+        /// 将子物体设为section*node的子级
+        /// </summary>
+        private void AttachChildPartToNode()
         {
-            //更新本零件的连接节点
-            nodes[nodeIDSec0].position = Section0Transform.localPosition;
-            nodes[nodeIDSec0].nodeTransform = Section0Transform;
-            nodes[nodeIDSec1].position = Section1Transform.localPosition;
-            nodes[nodeIDSec1].nodeTransform = Section1Transform;
-            nodes[nodeIDSec0].orientation = Vector3.up;
-            nodes[nodeIDSec1].orientation = -Vector3.up;
+            oppsingNode0 = node0.FindOpposingNode();
+            oppsingNode1 = node1.FindOpposingNode();
+
+            bool attatch0 = false, attatch1 = false;
+            parentOnNode0 = parentOnNode1 = parentOnSurfNode = false;
+            parentIsSelfy = part.parent == null;
+            if (!parentIsSelfy)
+            {
+                parentOnNode0 = oppsingNode0 != null && (oppsingNode0.owner.persistentId == part.parent.persistentId);
+                parentOnNode1 = oppsingNode1 != null && (oppsingNode1.owner.persistentId == part.parent.persistentId);
+                parentOnSurfNode = !(parentOnNode0 || parentOnNode1);
+                if (parentOnNode0)
+                    attatch1 = true;
+                else if (parentOnNode1)
+                    attatch0 = true;
+                else
+                    attatch0 = attatch1 = true;
+            }
+            else
+                attatch0 = attatch1 = true;
+            if (attatch0 && oppsingNode0 != null)
+                oppsingNode0.owner.transform.SetParent(Section0.transform, true);
+            if (attatch1 && oppsingNode1 != null)
+                oppsingNode1.owner.transform.SetParent(Section1.transform, true);
+        }
+        /// <summary>
+        /// 更新本零件的位置
+        /// </summary>
+        private void UpdatePosition()
+        {
+            //node0连接了父级，则移动自己保证截面0绝对位置不变。但截面0相对于本零件原点本身就是固定方位的，所以这里不做任何事
+            //当本零件用表面连接点连到父级，或者本身就是父级时，不移动本零件
+            if (parentOnNode0)
+            {
+                var sec0WldPosChange = part.transform.TransformPoint(0, Length / 2f, 0) - sec0WldPosBeforeEdit;
+                part.transform.position = part.transform.position - sec0WldPosChange;
+            }
+            else if (parentOnNode1)
+            {
+                var partLclPosChange = new Vector3(runBeforeEdit - Run, (Length - lengthBeforeEdit) / 2f, raiseBeforeEdit - Raise);
+                var partWldRotChange = Quaternion.AngleAxis(twistBeforeEdit - Twist, partWldRotBeforeEdit * Vector3.up);
+                part.transform.position = partWldPosBeforeEdit - part.transform.TransformVector(partLclPosChange);
+                part.transform.rotation = partWldRotChange * partWldRotBeforeEdit;
+                var sec1WldPosChange = part.transform.TransformPoint(Run, -Length / 2f, Raise) - sec1WldPosBeforeEdit;
+                part.transform.position = part.transform.position - sec1WldPosChange;
+            }
+        }
+        /// <summary>
+        /// 将子物体还原到hierarchy的原来位置
+        /// </summary>
+        private void DetachChildPartFromNode()
+        {
+            bool attatch0 = false, attatch1 = false;
+            if (parentOnNode0)
+                attatch1 = true;
+            else if (parentOnNode1)
+                attatch0 = true;
+            else
+                attatch0 = attatch1 = true;
+            if (attatch0 && oppsingNode0 != null)
+                oppsingNode0.owner.transform.SetParent(part.transform, true);
+            if (attatch1 && oppsingNode1 != null)
+                oppsingNode1.owner.transform.SetParent(part.transform, true);
+        }
+        /// <summary>
+        /// 更新本零件的连接节点位置
+        /// </summary>
+        private void UpdateAttchNodePos()
+        {
+            node0.position = Section0Transform.localPosition;
+            node0.nodeTransform = Section0Transform;
+            node1.position = Section1Transform.localPosition;
+            node1.nodeTransform = Section1Transform;
+            node0.orientation = Vector3.up;
+            node1.orientation = -Vector3.up;
         }
 
         private void Start()
@@ -831,14 +806,6 @@ namespace CarnationVariableSectionPart
         {
             if (HighLogic.LoadedSceneIsFlight && partLoaded) return;
             partLoaded = true;
-            CornerRadius[0] = Section0Radius.x;
-            CornerRadius[1] = Section0Radius.y;
-            CornerRadius[2] = Section0Radius.z;
-            CornerRadius[3] = Section0Radius.w;
-            CornerRadius[4] = Section1Radius.x;
-            CornerRadius[5] = Section1Radius.y;
-            CornerRadius[6] = Section1Radius.z;
-            CornerRadius[7] = Section1Radius.w;
             Section0Width = SectionSizes.x;
             Section0Height = SectionSizes.y;
             Section1Width = SectionSizes.z;
@@ -849,15 +816,24 @@ namespace CarnationVariableSectionPart
             MeshBuilder.StartBuilding(Mf, this);
             //更新到存档保存的零件尺寸
             UpdateSectionTransforms();
+            UpdateFuelTank();
             //如果是飞行场景，则隐藏被遮住的截面
             if (HighLogic.LoadedSceneIsFlight)
+            {
                 MeshBuilder.SetHideSections(isSectionVisible);
+                UpdateCoM();
+            }
             UpdateGeometry();
             if (HighLogic.LoadedSceneIsEditor)
                 GetNodePairsTransform();
-            UpdateAttchNodePos(part.attachNodes);
+            UpdateAttchNodePos();
+            UpdateAttchNodeSize();
             // UpdateAttachNodes();
             MeshBuilder.FinishBuilding(this);
+
+            part.attachNodes[0].secondaryAxis = Vector3.right;
+            part.attachNodes[1].secondaryAxis = Vector3.forward;
+
             Debug.Log("CVSP Load finished");
         }
         private void OnDestroy()
@@ -881,7 +857,10 @@ namespace CarnationVariableSectionPart
                 type == ConstructionEventType.PartTweaked ||
                 type == ConstructionEventType.PartRootSelected ||
                 type == ConstructionEventType.PartPicked)
-                UpdateAttchNodePos(part.attachNodes);
+                UpdateAttchNodePos();
+            if (part.localRoot == part && part.isAttached)
+                if (HighLogic.LoadedSceneIsEditor && costWidget)
+                    onShipModified.Invoke(costWidget, new object[] { part.ship });
         }
         private void LoadTexture()
         {
@@ -989,20 +968,45 @@ namespace CarnationVariableSectionPart
                 if (editing)
                 {
                     if (!PartParamChanged)
-                        for (int i = 0; i < CornerRadius.Length; i++)
-                            if (CornerRadius[i] != oldCornerRadius[i])
-                            {
-                                PartParamChanged = true;
-                                break;
-                            }
+                        if ((Section0Radius != oldSection0Radius || Section1Radius != oldSection1Radius))
+                            PartParamChanged = true;
                     if (PartParamChanged || startEdit)
                     {
                         UpdateMaterials();
+                        UpdateFuelTank();
+                        UpdateCoM();
+                        if (HighLogic.LoadedSceneIsEditor)
+                            foreach (var syc in part.symmetryCounterparts)
+                            {
+                                ModuleCarnationVariablePart cvsp = syc.FindModuleImplementing<ModuleCarnationVariablePart>();
+                                if (cvsp == null)
+                                {
+                                    Debug.LogError("[CarnationVariableSectionPart] Module not found on symmetry counter parts");
+                                    break;
+                                }
+                                cvsp.Mf.mesh = Mf.mesh;
+                                cvsp.CopyParams(this);
+                                cvsp.UpdateFuelTank();
+                                cvsp.UpdateCoM();
+                                cvsp.AttachChildPartToNode();
+                                cvsp.UpdateSectionTransforms();
+                                cvsp.UpdatePosition();
+                                cvsp.DetachChildPartFromNode();
+                                cvsp.UpdateAttchNodePos();
+                                cvsp.UpdateAttchNodeSize();
+                            }
+                        //如果本零件刚刚复制了别的零件的尺寸形状，则需要更新位置
+                        if (!startEdit || forceUpdatedPos)
+                        {
+                            forceUpdatedPos = false;
+                        }
+                        AttachChildPartToNode();
                         UpdateSectionTransforms();
+                        UpdatePosition();
+                        DetachChildPartFromNode();
+                        UpdateAttchNodePos();
+                        UpdateAttchNodeSize();
                         UpdateGeometry();
-                        UpdateAttchNodePos(part.attachNodes);
-                        if (!startEdit)
-                            UpdatePartsPosition();
                         startEdit = false;
                     }
                 }
@@ -1013,14 +1017,25 @@ namespace CarnationVariableSectionPart
             }
         }
 
+        private void UpdateAttchNodeSize()
+        {
+            var size0 = Mathf.Max(Section0Height, Section0Width);
+            var size1 = Mathf.Max(Section1Height, Section1Width);
+            node0.size = (int)(/*node0.size **/(size0 / 1.25f));
+            node1.size = (int)(/*node1.size **/(size1 / 1.25f));
+            surfNode.position.x = Mathf.Lerp(size0, size1, .5f) / 2f;
+            surfNode.position = surfNode.position + CoMOffset;
+        }
+
         public void OnEndEditing()
         {
-            editing = true;
+            editing = false;
             startEdit = false;
             if (MeshBuilder != null)
             {
                 DestroyMeshBuilder();
             }
+            isSectionVisible = GetSectionsVisiblity();
         }
         public void OnStartEditing()
         {
@@ -1038,14 +1053,6 @@ namespace CarnationVariableSectionPart
             //如果没按下左Ctrl，则初始化新零件的形状，这里只要初始化圆角大小就够了
             if (!CVSPEditorTool.PreserveParameters)
             {
-                CornerRadius[0] = Section0Radius.x;
-                CornerRadius[1] = Section0Radius.y;
-                CornerRadius[2] = Section0Radius.z;
-                CornerRadius[3] = Section0Radius.w;
-                CornerRadius[4] = Section1Radius.x;
-                CornerRadius[5] = Section1Radius.y;
-                CornerRadius[6] = Section1Radius.z;
-                CornerRadius[7] = Section1Radius.w;
             }
             MeshBuilder.StartBuilding(Mf, this);
             //if (HighLogic.LoadedSceneIsEditor)
@@ -1054,7 +1061,7 @@ namespace CarnationVariableSectionPart
             GetNodePairsTransform();
             //如果本零件刚刚复制了别的零件的尺寸形状，则需要更新位置
             if (CVSPEditorTool.PreserveParameters)
-                UpdatePartsPosition();
+                forceUpdatedPos = true;
             //Secttion0Transform.localPosition = Vector3.zero;
             //Secttion1Transform.localPosition = Vector3.zero;
         }
@@ -1158,30 +1165,31 @@ namespace CarnationVariableSectionPart
             secIDThis *= 4;
             secIDOther *= 4;
             for (int i = 0; i < 4; i++)
-                if (!IsIndentical(CornerRadius[i + secIDThis], other.CornerRadius[i + secIDOther]))
+                if (!IsIndentical(getCornerRadius(i + secIDThis), other.getCornerRadius(i + secIDOther)))
                     return false;
             return true;
         }
         private float SumCornerRadius(int sectionID)
         {
             sectionID *= 4;
-            return CornerRadius[0 + sectionID]
-                 + CornerRadius[1 + sectionID]
-                 + CornerRadius[2 + sectionID]
-                 + CornerRadius[3 + sectionID];
+            return getCornerRadius(0 + sectionID)
+                 + getCornerRadius(1 + sectionID)
+                 + getCornerRadius(2 + sectionID)
+                 + getCornerRadius(3 + sectionID);
         }
         private void BackupParametersBeforeEdit()
         {
-            sec0WldPosBeforeEdit = Section0Transform.position;
-            sec1WldPosBeforeEdit = Section1Transform.position;
-            partWldRotBeforeEdit = part.transform.rotation;
-            partWldPosBeforeEdit = part.transform.position;
+            sec0WldPosBeforeEdit = Clone(Section0Transform.position);
+            sec1WldPosBeforeEdit = Clone(Section1Transform.position);
+            partWldRotBeforeEdit = Clone(part.transform.rotation);
+            partWldPosBeforeEdit = Clone(part.transform.position);
             twistBeforeEdit = Twist;
             runBeforeEdit = Run;
             raiseBeforeEdit = Raise;
             lengthBeforeEdit = Length;
         }
-
+        public static Vector3 Clone(Vector3 v) => new Vector3(v.x, v.y, v.z);
+        public static Quaternion Clone(Quaternion q) => new Quaternion(q.x, q.y, q.z, q.w);
         private void DestroyMeshBuilder()
         {
             MeshBuilder.FinishBuilding(this);
@@ -1245,10 +1253,10 @@ namespace CarnationVariableSectionPart
             var maxArea = Section0Height * Section0Width / 4;
             //从方形面积扣除因倒圆少了的面积
             for (int i = 0; i < 4; i++)
-                section0Area += maxArea * (1 - AreaDifference * CornerRadius[i]);
+                section0Area += maxArea * (1 - AreaDifference * getCornerRadius(i));
             maxArea = Section1Height * Section1Width / 4;
             for (int i = 4; i < 8; i++)
-                section1Area += maxArea * (1 - AreaDifference * CornerRadius[i]);
+                section1Area += maxArea * (1 - AreaDifference * getCornerRadius(i));
         }
         private void CalcSurfaceArea()
         {
@@ -1260,10 +1268,10 @@ namespace CarnationVariableSectionPart
             section1Perimeter = 0;
             var maxPeri = (Section0Width + Section0Height) / 2;
             for (int i = 0; i < 4; i++)
-                section0Perimeter += maxPeri * (1 - PerimeterDifference * CornerRadius[i]);
+                section0Perimeter += maxPeri * (1 - PerimeterDifference * getCornerRadius(i));
             maxPeri = (Section1Width + Section1Height) / 2;
             for (int i = 4; i < 8; i++)
-                section1Perimeter += maxPeri * (1 - PerimeterDifference * CornerRadius[i]);
+                section1Perimeter += maxPeri * (1 - PerimeterDifference * getCornerRadius(i));
         }
         public float GetModuleCost(float defaultCost, ModifierStagingSituation sit)
         {
@@ -1297,6 +1305,28 @@ namespace CarnationVariableSectionPart
             return ModifierChangeWhen.FIXED;
         }
 
+        private void OnGUI()
+        {
+            //if (editing)
+            //{
+            //    GUI.Label(new Rect(200, 100, 150, 25), $"Twist:{Twist:F2}");
+            //}
+            //if (part.parent == null)
+            //{
+            //    if (Input.GetKeyDown(KeyCode.Keypad4))
+            //        part.attRotation = Quaternion.AngleAxis(-2f, Vector3.up) * part.attRotation;
+            //    else if (Input.GetKeyDown(KeyCode.Keypad6))
+            //        part.attRotation = Quaternion.AngleAxis(2f, Vector3.up) * part.attRotation;
+            //    else if (Input.GetKeyDown(KeyCode.Keypad2))
+            //        part.attRotation0 = Quaternion.AngleAxis(-2f, Vector3.forward) * part.attRotation0;
+            //    else if (Input.GetKeyDown(KeyCode.Keypad8))
+            //        part.attRotation0 = Quaternion.AngleAxis(2f, Vector3.forward) * part.attRotation0;
+            //    //  part.attRotation = part.attRotation0;
+            //    //  part.attachNodes[0].originalSecondaryAxis = part.attachNodes[0].secondaryAxis;
+            //    GUI.Label(new Rect(200, 130, 350, 25), $"attRotation :{part.attRotation}");
+            //    GUI.Label(new Rect(200, 160, 350, 25), $"attRotation0:{part.attRotation0}");
 
+            //}
+        }
     }
 }

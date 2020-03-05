@@ -650,9 +650,17 @@ namespace CarnationVariableSectionPart
             GetNow();
             return now-old;
         }
-        public void Update()
+        public void Update(Vector4 section0Radius, Vector4 section1Radius)
         {
             GetNow();
+            roundRadius[0] = section0Radius.x;
+            roundRadius[1] = section0Radius.y;
+            roundRadius[2] = section0Radius.z;
+            roundRadius[3] = section0Radius.w;
+            roundRadius[4] = section1Radius.x;
+            roundRadius[5] = section1Radius.y;
+            roundRadius[6] = section1Radius.z;
+            roundRadius[7] = section1Radius.w;
             //扭转四元数，也代表了截面1的旋转
             qSection1Rotation = Quaternion.AngleAxis(cvsp.Twist, Vector3.up);
             qSection1InverseRotation = Quaternion.Inverse(qSection1Rotation);
