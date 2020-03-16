@@ -1,0 +1,1 @@
+copy "C:\Users\8500G5M\KSPPlugins\KSP181\CarnationVariableSectionPart - Copy\Temp\bin\Release\CarnationVariableSectionPart_UI.dll" "C:\Users\8500G5M\KSPPlugins\KSP181\CarnationVariableSectionPart\Assets\Plugins"

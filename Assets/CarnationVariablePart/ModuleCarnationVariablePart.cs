@@ -6,6 +6,7 @@ using System.Reflection;
 using System.Collections.Generic;
 using System.Text.RegularExpressions;
 using System.Runtime.Serialization.Formatters.Binary;
+using CarnationVariableSectionPart.UI;
 
 namespace CarnationVariableSectionPart
 {
@@ -15,122 +16,161 @@ namespace CarnationVariableSectionPart
     ///     2.按Ctrl+P，可以复制当前编辑的零件形状到鼠标指着的另外一个零件
     ///     3.小键盘1379可以对零件进行偏移
     /// TO-DOs:
-    ///     1.动态计算油箱本体重量 done
-    ///     2.计算更新重心位置 done
+    ///     1.done 动态计算油箱本体重量
+    ///     2.done 计算更新重心位置
     ///     3.打开编辑手柄后，显示一个面板可以拖动、输入尺寸，提供接口来更换贴图、切换参数
-    ///     4.更新模型切线数据、添加支持法线贴图 done，烘焙了新默认贴图
+    ///     4.done 更新模型切线数据、添加支持法线贴图，烘焙了新默认贴图
     ///     5.异步生成模型
-    ///     6.计算更新干重、干Cost done
+    ///     6.done 计算更新干重、干Cost
     ///     7.切换油箱类型
-    ///     8.曲面细分（是不是有点高大上，手动滑稽）
+    ///     8.done 曲面细分（是不是有点高大上，手动滑稽）
     ///     9.堆叠起来的两个零件，截面形状编辑可以联动
     ///     10.（有可能会做的）零件接缝处的法线统一化，这个有时候可以提高观感
     ///     11.（也可能会做的）提供形状不一样的圆角，现在只有纯圆的，按照目前算法添加新形状不是特别难
     ///     12.切分零件、合并零件，且不改变形状
     ///     13.RO\RF
-    ///     14.隐藏堆叠部件的相邻Mesh
+    ///     14.done 隐藏堆叠部件的相邻Mesh
     /// BUG:
     ///     1.体积和燃料对应好像有点问题
     ///     2.形状比较夸张时，UV和法线比较怪（没有细分就是这样的）
     /// </summary>
-    public class ModuleCarnationVariablePart : PartModule, IPartCostModifier, IPartMassModifier, IPartSizeModifier
+    public class ModuleCarnationVariablePart : PartModule, IPartCostModifier, IPartMassModifier, IPartSizeModifier, IParameterMonitor
     {
+        [CVSPField(fieldName: "Section0Radius")]
         [KSPField(isPersistant = true)]
         public Vector4 Section0Radius = Vector4.one;
+
         [KSPField(isPersistant = true)]
+        [CVSPField(fieldName: "Section1Radius")]
         public Vector4 Section1Radius = Vector4.one;
+
         [KSPField(isPersistant = true)]
-        public Vector4 SectionSizes = Vector4.one;
+        [CVSPField(fieldName: "SectionSizes")]
+        public Vector4 SectionSizes = Vector4.one * 1.25f;
+
         [KSPField(isPersistant = true)]
-        public string EndTexNames = "end_d.png, end_n.png, end_s.png";
+        [CVSPField(fieldName: "offsets")]
+        public Vector4 offsets = new Vector4(0, 1.894225f, 0, 0);
+
         [KSPField(isPersistant = true)]
-        public string SideTexNames = "side_d.png, side_n.png, side_s.png";
+        [CVSPField(fieldName: "tilt")]
+        public float tilt = 0;
+
         [KSPField(isPersistant = true)]
-        public int Shininess = (int)(0.1f * 1000f);
+        [CVSPField(fieldName: "scale")]
+        public Vector3 scale = new Vector3(1, 1, 1);
+
+        [KSPField(isPersistant = true)]
+        [CVSPField(fieldName: "CoMOffset")]
+        public Vector3 CoMOffset;
+
+        [KSPField(isPersistant = true)]
+        [CVSPField(fieldName: "endTexNames")]
+        public string endTexNames = "end_d.dds, end_n.dds, end_s.dds";
+
+        [KSPField(isPersistant = true)]
+        [CVSPField(fieldName: "sideTexNames")]
+        public string sideTexNames = "side_d.dds, side_n.dds, side_s.dds";
+
+        [KSPField(isPersistant = true)]
+        [CVSPField(fieldName: "shininess")]
+        public int shininess = (int)(0.1f * 1000f);
+
+        [KSPField(isPersistant = true)]
+        [CVSPField(fieldName: "colorTint")]
+        public Vector3 colorTint = Vector3.one * .85f;
+
+        [KSPField(isPersistant = true)]
+        [CVSPField(fieldName: "cornerUVCorrection")]
+        public bool cornerUVCorrection = true;
+
+        [KSPField(isPersistant = true)]
+        [CVSPField(fieldName: "realWorldMapping")]
+        public bool realWorldMapping = false;
+
+        [KSPField(isPersistant = true)]
+        [CVSPField(fieldName: "sectionTiledMapping")]
+        public bool sectionTiledMapping = false;
+
+        [KSPField(isPersistant = true)]
+        [CVSPField(fieldName: "useEndsTexture")]
+        public bool useEndsTexture = true;
+
+        [KSPField(isPersistant = true)]
+        [CVSPField(fieldName: "useSideTexture")]
+        private bool useSideTexture = true;
+
+        [KSPField(isPersistant = true)]
+        [CVSPField(fieldName: "uvOffsets")]
+        public Vector4 uvOffsets = Vector4.zero;
+        [KSPField(isPersistant = true)]
+        [CVSPField(fieldName: "uvScales")]
+        public Vector4 uvScales = Vector4.one;
+        [KSPField(isPersistant = true)]
+        [CVSPField(fieldName: "isSectionVisible")]
+        public Vector2 isSectionVisible = new Vector2(1f, 1);
+        [KSPField(isPersistant = true)]
+        [CVSPField(fieldName: "tankType")]
+        public FuelType tankType = FuelType.LFO;
         public float Section0Width
         {
-            get => _Section0Width;
-            set
-            {
-                _Section0Width = Mathf.Clamp(value, 0, MaxSize);
-                PartParamChanged = true;
-            }
+            get => SectionSizes.x;
+            set => SectionSizes.x = Mathf.Clamp(value, 0, MaxSize);
         }
         public float Section0Height
         {
-            get => _Section0Height;
-            set
-            {
-                _Section0Height = Mathf.Clamp(value, 0, MaxSize);
-                PartParamChanged = true;
-            }
+            get => SectionSizes.y;
+            set => SectionSizes.y = Mathf.Clamp(value, 0, MaxSize);
         }
         public float Section1Width
         {
-            get => _Section1Width;
-            set
-            {
-                _Section1Width = Mathf.Clamp(value, 0, MaxSize);
-                PartParamChanged = true;
-            }
+            get => SectionSizes.z;
+            set => SectionSizes.z = Mathf.Clamp(value, 0, MaxSize);
         }
         public float Section1Height
         {
-            get => _Section1Height;
-            set
-            {
-                _Section1Height = Mathf.Clamp(value, 0, MaxSize);
-                PartParamChanged = true;
-            }
+            get => SectionSizes.w;
+            set => SectionSizes.w = Mathf.Clamp(value, 0, MaxSize);
         }
         public float Length
         {
-            get => length;
-            set
-            {
-                length = Mathf.Clamp(value, 0.001f, MaxSize);
-                PartParamChanged = true;
-            }
+            get => offsets.y;
+            set => offsets.y = Mathf.Clamp(value, 0.001f, MaxSize);
         }
         /// <summary>
         /// Along width
         /// </summary>
+        //[InvertOnMirrorSymetry]
         public float Run
         {
-            get => run;
-            set
-            {
-                run = Mathf.Min(value, MaxSize);
-                PartParamChanged = true;
-            }
+            get => offsets.z;
+            set => offsets.z = Mathf.Min(value, MaxSize);
         }
         /// <summary>
         /// Along height
         /// </summary>
+        [InvertOnMirrorSymetry]
         public float Raise
         {
-            get => raise;
-            set
-            {
-                raise = Mathf.Min(value, MaxSize);
-                PartParamChanged = true;
-            }
+            get => offsets.w;
+            set => offsets.w = Mathf.Min(value, MaxSize);
         }
+        [InvertOnMirrorSymetry]
         public float Twist
         {
-            get => twist;
-            set
-            {
-                twist = Mathf.Clamp(value, -45f, 45f);
-                PartParamChanged = true;
-            }
+            get => offsets.x;
+            set => offsets.x = Mathf.Clamp(value, -45f, 45f);
+        }
+        public float Tilt
+        {
+            get => tilt;
+            set => tilt = Mathf.Clamp(value, -45f, 45f);
         }
         public Transform Section1Transform { get; private set; }
         public Transform Section0Transform { get; private set; }
         private Vector4 oldSection1Radius = new Vector4();
         private Vector4 oldSection0Radius = new Vector4();
-        private const int CountCorners = 8;
-        public float getCornerRadius(int id)
+        public float GetCornerRadius(int id)
         {
             var sec = id > 3 ? Section1Radius : Section0Radius;
             id %= 4;
@@ -146,7 +186,7 @@ namespace CarnationVariableSectionPart
                     return sec.w;
             }
         }
-        public void setCornerRadius(int id, float value)
+        public void SetCornerRadius(int id, float value)
         {
             bool b0 = id > 3;
             var sec = b0 ? Section1Radius : Section0Radius;
@@ -169,91 +209,27 @@ namespace CarnationVariableSectionPart
             if (b0) Section1Radius = sec;
             else Section0Radius = sec;
         }
-        public bool CornerUVCorrection
-        {
-            get => cornerUVCorrection; set
-            {
-                cornerUVCorrection = value;
-                PartParamChanged = true;
-            }
-        }
-        public bool RealWorldMapping
-        {
-            get => realWorldMapping; set
-            {
-                realWorldMapping = value;
-                PartParamChanged = true;
-            }
-        }
-        public bool SectionTiledMapping
-        {
-            get => sectionTiledMapping; set
-            {
-                sectionTiledMapping = value;
-                PartParamChanged = true;
-            }
-        }
-        public float SideUVOffsetU
-        {
-            get => sideUVOffestU; set
-            {
-                sideUVOffestU = value;
-                PartParamChanged = true;
-            }
-        }
-        public float SideUVOffsetV
-        {
-            get => sideUVOffestV; set
-            {
-                sideUVOffestV = value;
-                PartParamChanged = true;
-            }
-        }
-        public float EndUVOffsetU
-        {
-            get => endUVOffestU; set
-            {
-                endUVOffestU = value;
-                PartParamChanged = true;
-            }
-        }
-        public float EndUVOffsetV
-        {
-            get => endUVOffestV; set
-            {
-                endUVOffestV = value;
-                PartParamChanged = true;
-            }
-        }
-        public float SideUVScaleU { get; set; }
-        public float SideUVScaleV
-        {
-            get => sideUVScaleV;
-            set
-            {
-                sideUVScaleV = value;
-                PartParamChanged = true;
-            }
-        }
-        public float EndUVScaleU
-        {
-            get => endUVScaleU;
-            set
-            {
-                endUVScaleU = value;
-                PartParamChanged = true;
-            }
-        }
-        public float EndUVScaleV
-        {
-            get => endUVScaleV; set
-            {
-                endUVScaleV = value;
-                PartParamChanged = true;
-            }
-        }
+        public bool CornerUVCorrection { get => cornerUVCorrection; set => cornerUVCorrection = value; }
+        public bool RealWorldMapping { get => realWorldMapping; set => realWorldMapping = value; }
+        public bool EndsTiledMapping { get => sectionTiledMapping; set => sectionTiledMapping = value; }
+        public bool UseEndsTexture { get => useEndsTexture; set => useEndsTexture = value; }
+        public bool UseSideTexture { get => useSideTexture; set => useSideTexture = value; }
+        public float SideOffsetU { get => uvOffsets.x; set => uvOffsets.Set(value, uvOffsets.y, uvOffsets.z, uvOffsets.w); }
+        public float SideOffsetV { get => uvOffsets.y; set => uvOffsets.Set(uvOffsets.x, value, uvOffsets.z, uvOffsets.w); }
+        public float EndOffsetU { get => uvOffsets.z; set => uvOffsets.Set(uvOffsets.x, uvOffsets.y, value, uvOffsets.w); }
+        public float EndOffsetV { get => uvOffsets.w; set => uvOffsets.Set(uvOffsets.x, uvOffsets.y, uvOffsets.z, value); }
+        public float SideScaleU { get => uvScales.x; set => uvScales.Set(value, uvScales.y, uvScales.z, uvScales.w); }
+        public float SideScaleV { get => uvScales.y; set => uvScales.Set(uvScales.x, value, uvScales.z, uvScales.w); }
+        public float EndScaleU { get => uvScales.z; set => uvScales.Set(uvScales.x, uvScales.y, value, uvScales.w); }
+        public float EndScaleV { get => uvScales.w; set => uvScales.Set(uvScales.x, uvScales.y, uvScales.z, value); }
+        public float Shininess { get => shininess; set => shininess = (int)value; }
+        public float TintR { get => 255 * colorTint.x; set => colorTint = new Vector3(value / 255, colorTint.y, colorTint.z); }
+        public float TintG { get => 255 * colorTint.y; set => colorTint = new Vector3(colorTint.x, value / 255, colorTint.z); }
+        public float TintB { get => 255 * colorTint.z; set => colorTint = new Vector3(colorTint.x, colorTint.y, value / 255); }
 
-        public bool PartParamChanged { get; private set; } = true;
+        public bool PartParamModified => CVSPField.ValueChanged(this);
+        public bool ShouldUpdateGeometry => PartParamModified || ForceUpdate;
+        public bool ForceUpdate { get; private set; } = false;
         private MeshCollider collider;
 
         public Renderer MeshRender
@@ -288,15 +264,7 @@ namespace CarnationVariableSectionPart
 
         public CVSPMeshBuilder MeshBuilder
         {
-            get
-            {
-                if (meshBuilder == null)
-                {
-                    meshBuilder = CVSPMeshBuilder.Instance;
-                    if (meshBuilder == null) throw new Exception();
-                }
-                return meshBuilder;
-            }
+            get => CVSPMeshBuilder.Instance;
         }
 
         private MeshFilter Mf
@@ -321,55 +289,20 @@ namespace CarnationVariableSectionPart
             }
             private set => collider = value;
         }
-        public Texture EndDiffuseTexture;
-        public Texture SideDiffuseTexture;
-        public Texture EndNormTexture;
+        public Texture EndsDiffTexture;
+        public Texture SideDiffTexture;
+        public Texture EndsNormTexture;
         public Texture SideNormTexture;
-        public Texture EndSpecTexture;
+        public Texture EndsSpecTexture;
         public Texture SideSpecTexture;
 
-        [KSPField(isPersistant = true)]
-        private float twist = 0;
-        private float _Section0Width = 2;
-        private float _Section0Height = 2;
-        private float _Section1Width = 2;
-        private float _Section1Height = 2;
-        [KSPField(isPersistant = true)]
-        private Vector3 CoMOffset;
-        [KSPField(isPersistant = true)]
-        private float length = 1.894225f;
-        [KSPField(isPersistant = true)]
-        private float run = 0;
-        [KSPField(isPersistant = true)]
-        private float raise = 0;
-        [KSPField(isPersistant = true)]
-        private bool cornerUVCorrection = true;
-        [KSPField(isPersistant = true)]
-        private bool realWorldMapping = false;
-        [KSPField(isPersistant = true)]
-        private bool sectionTiledMapping = false;
-        [KSPField(isPersistant = true)]
-        private float sideUVOffestU = 0;
-        [KSPField(isPersistant = true)]
-        private float sideUVOffestV = 0;
-        [KSPField(isPersistant = true)]
-        private float endUVOffestU = 0;
-        [KSPField(isPersistant = true)]
-        private float endUVOffestV = 0;
-        [KSPField(isPersistant = true)]
-        private float sideUVScaleV = 0;
-        [KSPField(isPersistant = true)]
-        private float endUVScaleU = 1;
-        [KSPField(isPersistant = true)]
-        private float endUVScaleV = 1;
+        private static MemberInfo[] membersInvertOnMirrorSymetry;
         private GameObject Section0, Section1;
         private bool?[] calculatedSectionVisiblity = new bool?[2];
-        [KSPField(isPersistant = true)]
-        private Vector2 isSectionVisible = new Vector2(1f, 1);
-        private CVSPMeshBuilder meshBuilder;
+        int[] subdivideLevels = new int[8];
         private Renderer _MeshRender;
         private MeshFilter mf;
-        private bool editing = false;
+        private bool gizmoEditing = false;
         private bool startEdit = false;
         private bool fready = false;
         private bool partLoaded;
@@ -417,8 +350,6 @@ namespace CarnationVariableSectionPart
             { FuelType.EC, 1 },
             { FuelType.Ore, 1 },
         };
-        [KSPField(isPersistant = true)]
-        private FuelType tankType = FuelType.LFO;
         private const float Ratio_LFOX = 9f / 20f;
         private float totalMaxAmount;
         private const float UnitPerVolume = 172.04301f;
@@ -452,10 +383,6 @@ namespace CarnationVariableSectionPart
         private static readonly int nodeIDSec0 = 0;
         private static readonly int nodeCount = 2;
         #endregion
-        private Vector3[] nodeOppsingPartPosOld = new Vector3[nodeCount];
-        private Quaternion[] nodeOppsingPartRotOld = new Quaternion[nodeCount];
-        private Vector3[] nodePairsTranslationOld = new Vector3[nodeCount];
-        private Quaternion[] nodePairsRotationOld = new Quaternion[nodeCount];
         private Vector3 sec0WldPosBeforeEdit;
         private Vector3 sec1WldPosBeforeEdit;
         private Quaternion partWldRotBeforeEdit;
@@ -474,75 +401,140 @@ namespace CarnationVariableSectionPart
         private static Texture defaultSideDiff, defaultSideNorm, defaultSideSpec;
         private static Texture defaultEndDiffu, defaultEndNorma, defaultEndSpecu;
         private static Texture defaultEmptyNorm, defaultEmptySpec;
+        private Texture2D plainColorTexture;
         private static bool DefaultTexuresLoaded = false;
-        private static bool forceUpdatedPos;
-        private readonly bool UseSideTexture = true;
-        private readonly bool UseEndTexture = true;
 
+        static ModuleCarnationVariablePart()
+        {
+            List<MemberInfo> list = new List<MemberInfo>();
+            var f = typeof(ModuleCarnationVariablePart).GetMembers();
+            foreach (var mem in f)
+            {
+                if (mem.IsDefined(typeof(InvertOnMirrorSymetry), false))
+                    list.Add(mem);
+            }
+            membersInvertOnMirrorSymetry = list.ToArray();
+        }
+
+        internal void SetTexture(Texture2D newt2d, TextureTarget target, string path)
+        {
+            var t2d = newt2d;
+            if (TextureLib.ContainsKey(path))
+            {
+                Destroy(TextureLib[path]);
+                TextureLib[path] = newt2d;
+                t2d = (Texture2D)TextureLib[path];
+            }
+            else TextureLib.Add(path, t2d);
+
+            switch (target)
+            {
+                case TextureTarget.EndsDiff:
+                    EndsDiffTexture = t2d;
+                    SetTexName(ref endTexNames, path, 0);
+                    break;
+                case TextureTarget.EndsNorm:
+                    EndsNormTexture = t2d;
+                    SetTexName(ref endTexNames, path, 1);
+                    break;
+                case TextureTarget.EndsSpec:
+                    EndsSpecTexture = t2d;
+                    SetTexName(ref endTexNames, path, 2);
+                    break;
+                case TextureTarget.SideDiff:
+                    SideDiffTexture = t2d;
+                    SetTexName(ref sideTexNames, path, 0);
+                    break;
+                case TextureTarget.SideNorm:
+                    SideNormTexture = t2d;
+                    SetTexName(ref sideTexNames, path, 1);
+                    break;
+                case TextureTarget.SideSpec:
+                    SideSpecTexture = t2d;
+                    SetTexName(ref sideTexNames, path, 2);
+                    break;
+                default:
+                    break;
+            }
+        }
+        private void SetTexName(ref string texName, string value, int pos)
+        {
+            var s = SplitStringByComma(texName, 3);
+            s[pos] = value;
+            texName = $"{s[0]}, {s[1]}, {s[2]}";
+        }
         public override void OnAwake()
         {
             if (DefaultTexuresLoaded) return;
-            TextureFolderPath = (@"file://" + typeof(ModuleCarnationVariablePart).Assembly.Location);
+            TextureFolderPath = (typeof(ModuleCarnationVariablePart).Assembly.Location);
             TextureFolderPath = TextureFolderPath.Remove(TextureFolderPath.LastIndexOf("Plugins")) + @"Texture" + Path.DirectorySeparatorChar;
-            defaultSideDiff = LoadTextureFromFile(TextureFolderPath + "side_d.png");
-            defaultSideNorm = LoadTextureFromFile(TextureFolderPath + "side_n.png");
-            defaultSideSpec = LoadTextureFromFile(TextureFolderPath + "side_s.png");
-            defaultEndDiffu = LoadTextureFromFile(TextureFolderPath + "end_d.png");
-            defaultEndNorma = LoadTextureFromFile(TextureFolderPath + "end_n.png");
-            defaultEndSpecu = LoadTextureFromFile(TextureFolderPath + "end_s.png");
-            defaultEmptyNorm = LoadTextureFromFile(TextureFolderPath + "empty_n.dds");
-            defaultEmptySpec = LoadTextureFromFile(TextureFolderPath + "empty_s.dds");
-            TextureLib.Add("side_d", defaultSideDiff);
-            TextureLib.Add("side_n", defaultSideNorm);
-            TextureLib.Add("side_s", defaultSideSpec);
-            TextureLib.Add("end_d", defaultEndDiffu);
-            TextureLib.Add("end_n", defaultEndNorma);
-            TextureLib.Add("end_s", defaultEndSpecu);
+            defaultSideDiff = CVSPUIManager.LoadTextureFromFile(TextureFolderPath + "side_d.dds", false);
+            defaultSideNorm = CVSPUIManager.LoadTextureFromFile(TextureFolderPath + "side_n.dds", true);
+            defaultSideSpec = CVSPUIManager.LoadTextureFromFile(TextureFolderPath + "side_s.dds", false);
+            defaultEndDiffu = CVSPUIManager.LoadTextureFromFile(TextureFolderPath + "end_d.dds", false);
+            defaultEndNorma = CVSPUIManager.LoadTextureFromFile(TextureFolderPath + "end_n.dds", true);
+            defaultEndSpecu = CVSPUIManager.LoadTextureFromFile(TextureFolderPath + "end_s.dds", false);
+            defaultEmptyNorm = CVSPUIManager.LoadTextureFromFile(TextureFolderPath + "empty_n.dds", true);
+            defaultEmptySpec = CVSPUIManager.LoadTextureFromFile(TextureFolderPath + "empty_s.dds", false);
+            TextureLib.Add("side_d.dds", defaultSideDiff);
+            TextureLib.Add("side_n.dds", defaultSideNorm);
+            TextureLib.Add("side_s.dds", defaultSideSpec);
+            TextureLib.Add("end_d.dds", defaultEndDiffu);
+            TextureLib.Add("end_n.dds", defaultEndNorma);
+            TextureLib.Add("end_s.dds", defaultEndSpecu);
             DefaultTexuresLoaded = true;
         }
-        public void SetupSectionNodes()
+        internal void SetupSectionNodes()
         {
-            if (Model.transform.childCount > 0)
-                for (int i = 0; i < Model.transform.childCount; i++)
-                {
-                    var t = Model.transform.GetChild(i);
-                    if (t.name.StartsWith("section") && t.name.EndsWith("node"))
-                        if (t.gameObject.activeSelf)
-                        {
-                            t.gameObject.SetActive(false);
-                            Destroy(t.gameObject);
-                            i--;
-                        }
-                }
-            if (Section0 == null)
-            {
-                Section0 = new GameObject("section0node");
-                Section0.transform.SetParent(Model.transform, false);
-            }
             if (Section1 == null)
             {
-                Section1 = new GameObject("section1node");
-                Section1.transform.SetParent(Model.transform, false);
+                var existed = Model.transform.Find("section1node");
+                if (existed)
+                    Section1 = existed.gameObject;
+                else
+                {
+                    Section1 = new GameObject("section1node");
+                    Section1.transform.SetParent(Model.transform, false);
+                }
+            }
+            if (Section0 == null)
+            {
+                var existed = Model.transform.Find("section0node");
+                if (existed)
+                    Section0 = existed.gameObject;
+                else
+                {
+                    Section0 = new GameObject("section0node");
+                    Section0.transform.SetParent(Model.transform, false);
+                }
             }
             Section0Transform = Section0.transform;
             Section1Transform = Section1.transform;
         }
-        public void UpdateGeometry()
+        internal void ForceUpdateGeometry()
+        {
+            var current = MeshBuilder.CurrentBuilding;
+            if (current)
+                MeshBuilder.FinishBuilding(current);
+            MeshBuilder.StartBuilding(Mf, this);
+            ForceUpdate = true;
+            UpdateGeometry();
+            MeshBuilder.FinishBuilding(this);
+            ForceUpdate = false;
+            if (current)
+                MeshBuilder.StartBuilding(current.Mf, current);
+        }
+        internal void UpdateGeometry()
         {
             if (MeshBuilder == null) return;
-            if (PartParamChanged)
+            if (ShouldUpdateGeometry)
             {
                 oldSection0Radius = Section0Radius;
                 oldSection1Radius = Section1Radius;
-                SectionSizes.x = Section0Width;
-                SectionSizes.y = Section0Height;
-                SectionSizes.z = Section1Width;
-                SectionSizes.w = Section1Height;
-                MeshBuilder.Update(Section0Radius, Section1Radius);
+                MeshBuilder.Update(Section0Radius, Section1Radius, subdivideLevels);
 
                 Collider.sharedMesh = null;
                 Collider.sharedMesh = Mf.mesh;
-                PartParamChanged = false;
             }
         }
 
@@ -583,7 +575,7 @@ namespace CarnationVariableSectionPart
         /// 复制参数
         /// </summary>
         /// <param name="from"></param>
-        private void CopyParams(ModuleCarnationVariablePart from)
+        internal void CopyParamsFrom(ModuleCarnationVariablePart from, bool symetryMirror = false)
         {
             Section0Width = from.Section0Width;
             Section0Height = from.Section0Height;
@@ -593,8 +585,50 @@ namespace CarnationVariableSectionPart
             Length = from.Length;
             Run = from.Run;
             Raise = from.Raise;
-            //CornerRadius不用复制了
+            Section0Radius = from.Section0Radius;
+            Section1Radius = from.Section1Radius;
+            if (symetryMirror)
+            {
+                Section0Radius.x = from.Section0Radius.z;
+                Section1Radius.x = from.Section1Radius.z;
+                Section0Radius.z = from.Section0Radius.x;
+                Section1Radius.z = from.Section1Radius.x;
+                Section0Radius.y = from.Section0Radius.w;
+                Section1Radius.y = from.Section1Radius.w;
+                Section0Radius.w = from.Section0Radius.y;
+                Section1Radius.w = from.Section1Radius.y;
+            }
+            CopyMaterialFrom(from);
+
         }
+
+        internal void CopyMaterialFrom(ModuleCarnationVariablePart from)
+        {
+            colorTint = Clone(from.colorTint);
+            shininess = from.shininess;
+            useEndsTexture = from.useEndsTexture;
+            useSideTexture = from.useSideTexture;
+            SideDiffTexture = from.SideDiffTexture;
+            SideNormTexture = from.SideNormTexture;
+            SideSpecTexture = from.SideSpecTexture;
+            EndsDiffTexture = from.EndsDiffTexture;
+            EndsNormTexture = from.EndsNormTexture;
+            EndsSpecTexture = from.EndsSpecTexture;
+            //SideScaleU = from.SideScaleU;
+            //SideScaleV = from.SideScaleV;
+            //SideOffsetU = from.SideOffsetU;
+            //SideOffsetV = from.SideOffsetV;
+            //EndScaleU = from.EndScaleU;
+            //EndScaleV = from.EndScaleV;
+            //EndOffsetU = from.EndOffsetU;
+            //EndOffsetV = from.EndOffsetV;
+            uvOffsets = from.uvOffsets;
+            uvScales = from.uvScales;
+            cornerUVCorrection = from.cornerUVCorrection;
+            realWorldMapping = from.realWorldMapping;
+            sectionTiledMapping = from.sectionTiledMapping;
+        }
+
         /// <summary>
         /// 编辑器中调用
         /// </summary>
@@ -647,44 +681,19 @@ namespace CarnationVariableSectionPart
                 if (HighLogic.LoadedSceneIsEditor && costWidget)
                     onShipModified.Invoke(costWidget, new object[] { part.ship });
         }
-        /// <summary>
-        /// 在开始编辑前计算、保存本零件节点和相连零件对应节点的相对偏移、旋转，用于编辑时更新相连零件的位置
-        /// </summary>
-        private void GetNodePairsTransform()
-        {
-            var nodes = part.attachNodes;
-            AttachNode oppsing, current;
-            current = node0;
-            if ((oppsing = current.FindOpposingNode()) != null)
-            {
-                nodeOppsingPartPosOld[nodeIDSec0] = oppsing.owner.transform.position;
-                nodeOppsingPartRotOld[nodeIDSec0] = oppsing.owner.transform.rotation;
-                //世界坐标系，从本零件0节点到所连接零件上节点的旋转
-                nodePairsRotationOld[nodeIDSec0] = (oppsing.owner.transform.rotation * Quaternion.FromToRotation(Vector3.up, oppsing.orientation))
-                                                * Quaternion.Inverse(part.transform.rotation * Quaternion.FromToRotation(Vector3.up, current.orientation));
-                //世界坐标系，从本零件0节点到所连接零件上节点的偏移
-                nodePairsTranslationOld[nodeIDSec0] = oppsing.owner.transform.TransformPoint(oppsing.position)
-                                                             - part.transform.TransformPoint(current.position);
-            }
-            current = node1;
-            if ((oppsing = current.FindOpposingNode()) != null)
-            {
-                nodeOppsingPartPosOld[nodeIDSec1] = oppsing.owner.transform.position;
-                nodeOppsingPartRotOld[nodeIDSec1] = oppsing.owner.transform.rotation;
-                //世界坐标系，从本零件1节点到所连接零件上节点的旋转
-                nodePairsRotationOld[nodeIDSec1] = (oppsing.owner.transform.rotation * Quaternion.FromToRotation(Vector3.up, oppsing.orientation))
-                                                * Quaternion.Inverse(part.transform.rotation * Quaternion.FromToRotation(Vector3.up, current.orientation));
-                //世界坐标系，从本零件1节点到所连接零件上节点的偏移
-                nodePairsTranslationOld[nodeIDSec1] = oppsing.owner.transform.TransformPoint(oppsing.position)
-                                                             - part.transform.TransformPoint(current.position);
-            }
-        }
 
         private bool parentIsSelfy, parentOnNode0, parentOnNode1, parentOnSurfNode;
         private AttachNode node0 => part.attachNodes[0];
         private AttachNode node1 => part.attachNodes[1];
         private AttachNode surfNode => part.srfAttachNode;
+        float IParameterMonitor.LastEvaluatedTime { get; set; }
+        bool IParameterMonitor.ValueChangedInCurrentFrame { get; set; }
+        List<object> IParameterMonitor.OldValues { get; set; } = new List<object>();
+
         private AttachNode oppsingNode0, oppsingNode1;
+        private static Part draggingPart;
+        internal static List<FieldInfo> fieldsInvertOnMirrorSymetry = new List<FieldInfo>();
+        internal static List<FieldInfo> fieldsCVSPParameters = new List<FieldInfo>();
 
         /// <summary>
         /// 将子物体设为section*node的子级
@@ -721,6 +730,7 @@ namespace CarnationVariableSectionPart
         /// </summary>
         private void UpdatePosition()
         {
+            bool symetryMirror = scale.z < 0;
             //node0连接了父级，则移动自己保证截面0绝对位置不变。但截面0相对于本零件原点本身就是固定方位的，所以这里不做任何事
             //当本零件用表面连接点连到父级，或者本身就是父级时，不移动本零件
             if (parentOnNode0)
@@ -730,11 +740,12 @@ namespace CarnationVariableSectionPart
             }
             else if (parentOnNode1)
             {
-                var partLclPosChange = new Vector3(runBeforeEdit - Run, (Length - lengthBeforeEdit) / 2f, raiseBeforeEdit - Raise);
-                var partWldRotChange = Quaternion.AngleAxis(twistBeforeEdit - Twist, partWldRotBeforeEdit * Vector3.up);
+                var partLclPosChange = new Vector3(runBeforeEdit - Run, (Length - lengthBeforeEdit) / 2f, (raiseBeforeEdit - Raise) * (symetryMirror ? -1 : 1));
+                var partWldRotChange = Quaternion.AngleAxis((twistBeforeEdit - Twist) * (symetryMirror ? -1 : 1), partWldRotBeforeEdit * Vector3.up);
                 part.transform.position = partWldPosBeforeEdit - part.transform.TransformVector(partLclPosChange);
                 part.transform.rotation = partWldRotChange * partWldRotBeforeEdit;
-                var sec1WldPosChange = part.transform.TransformPoint(Run, -Length / 2f, Raise) - sec1WldPosBeforeEdit;
+                part.attRotation = part.transform.rotation;
+                var sec1WldPosChange = part.transform.TransformPoint(Run, -Length / 2f, Raise * (symetryMirror ? -1 : 1)) - sec1WldPosBeforeEdit;
                 part.transform.position = part.transform.position - sec1WldPosChange;
             }
         }
@@ -767,20 +778,14 @@ namespace CarnationVariableSectionPart
             node0.orientation = Vector3.up;
             node1.orientation = -Vector3.up;
         }
-
         private void Start()
         {
             //使用旧版兼容的方法
-            if (Mf != null)
-            {
-                Debug.Log("[CarnationVariableSectionPart] MU model verts:" + Mf.sharedMesh.vertices.Length + ",tris:" + Mf.sharedMesh.triangles.Length / 3 + ",submeh:" + Mf.sharedMesh.subMeshCount);
-            }
-            else
-                Debug.Log("[CarnationVariableSectionPart] No Mesh Filter on model");
+            if (Mf == null)
+                Debug.LogError("[CarnationVariableSectionPart] No Mesh Filter on model");
             if (HighLogic.LoadedSceneIsEditor)
             {
                 GameEvents.onEditorPartEvent.Add(OnPartEvent);
-                GameEvents.OnAppFocus.Add(OnAppFocus);
                 LoadPart();
             }
             else
@@ -790,26 +795,16 @@ namespace CarnationVariableSectionPart
                 GameEvents.onFlightReady.Add(OnFReady);
             }
         }
-
         private void OnFReady()
         {
-            Debug.Log("F Ready");
             if (!fready)
                 LoadPart();
             fready = true;
         }
-        private void OnAppFocus(bool data)
-        {
-            CVSPEditorTool.Instance.Deactivate();
-        }
         void LoadPart()
         {
-            if (HighLogic.LoadedSceneIsFlight && partLoaded) return;
+            if (partLoaded) return;
             partLoaded = true;
-            Section0Width = SectionSizes.x;
-            Section0Height = SectionSizes.y;
-            Section1Width = SectionSizes.z;
-            Section1Height = SectionSizes.w;
             LoadTexture();
             UpdateMaterials();
             SetupSectionNodes();
@@ -820,36 +815,53 @@ namespace CarnationVariableSectionPart
             //如果是飞行场景，则隐藏被遮住的截面
             if (HighLogic.LoadedSceneIsFlight)
             {
+                CVSPMeshBuilder.BuildingCVSPForFlight = true;
                 MeshBuilder.SetHideSections(isSectionVisible);
                 UpdateCoM();
             }
             UpdateGeometry();
-            if (HighLogic.LoadedSceneIsEditor)
-                GetNodePairsTransform();
             UpdateAttchNodePos();
             UpdateAttchNodeSize();
-            // UpdateAttachNodes();
+            if (Model.transform.localScale != scale)
+                Model.transform.localScale = scale;
             MeshBuilder.FinishBuilding(this);
+            if (HighLogic.LoadedSceneIsFlight)
+            {
+                if (Section0) Destroy(Section0);
+                if (Section1) Destroy(Section1);
+            }
 
+            //不清楚有没有用
             part.attachNodes[0].secondaryAxis = Vector3.right;
             part.attachNodes[1].secondaryAxis = Vector3.forward;
-
-            Debug.Log("CVSP Load finished");
         }
         private void OnDestroy()
         {
+            if (CVSPUIManager.Instance)
+                if (!CVSPEditorTool.Instance.lastUIModifiedPart)
+                    CVSPUIManager.Instance.Close();
             CVSPEditorTool.OnPartDestroyed();
             //throws exception when game killed
-            Debug.Log("[CarnationVariableSectionPart] Part Module Destroyed!!!!!!!");
-            GameEvents.OnAppFocus.Remove(OnAppFocus);
+            //Debug.Log("[CarnationVariableSectionPart] Part Module Destroyed!!!!!!!");
             GameEvents.onEditorPartEvent.Remove(OnPartEvent);
             GameEvents.onFlightReady.Remove(OnFReady);
+        }
+        /// <summary>
+        /// 如果按住了手柄进行复制零件操作，则有残余的物体，需要清除
+        /// </summary>
+        internal void CleanChild()
+        {
+            if (Section0)
+                for (int i = 0; i < Section0.transform.childCount; i++)
+                    Destroy(Section0.transform.GetChild(i).gameObject);
+            if (Section1)
+                for (int i = 0; i < Section1.transform.childCount; i++)
+                    Destroy(Section1.transform.GetChild(i).gameObject);
         }
         private void OnPartEvent(ConstructionEventType type, Part p)
         {
             CVSPEditorTool.Instance.Deactivate();
-            calculatedSectionVisiblity = new bool?[] { new bool?(), new bool?() };
-            isSectionVisible = GetSectionsVisiblity();
+            UpdateSectionsVisiblity();
             if (type == ConstructionEventType.PartOffset ||
                 type == ConstructionEventType.PartRotated ||
                 type == ConstructionEventType.PartAttached ||
@@ -857,17 +869,38 @@ namespace CarnationVariableSectionPart
                 type == ConstructionEventType.PartTweaked ||
                 type == ConstructionEventType.PartRootSelected ||
                 type == ConstructionEventType.PartPicked)
+            {
+                //if uiediting,backup params
+                if (CVSPEditorTool.Instance.uiEditingPart)
+                    CVSPEditorTool.Instance.uiEditingPart.BackupParametersBeforeEdit();
                 UpdateAttchNodePos();
+            }
+            else if (type == ConstructionEventType.PartDeleted)
+            {
+                if (!CVSPEditorTool.Instance.lastUIModifiedPart)
+                    CVSPUIManager.Instance.Close();
+            }
+            else if (type == ConstructionEventType.PartDragging)
+                if (part.symMethod == SymmetryMethod.Mirror)
+                {
+                    bool isOnDraggingSide = (part == p || part.localRoot == p);
+                    if (!isOnDraggingSide && part.symmetryCounterparts.Count == 1 && part.HighlightActive)
+                    {
+                        MirrorPart();
+                        UpdateSectionTransforms();
+                        ForceUpdateGeometry();
+                    }
+                }
             if (part.localRoot == part && part.isAttached)
-                if (HighLogic.LoadedSceneIsEditor && costWidget)
+                if (HighLogic.LoadedSceneIsEditor && costWidget && part.ship.Parts.Count > 0)
                     onShipModified.Invoke(costWidget, new object[] { part.ship });
         }
         private void LoadTexture()
         {
-            LoadTextureMaps(SideTexNames, out SideDiffuseTexture, out SideNormTexture, out SideSpecTexture);
-            if (SideDiffuseTexture == null)
+            LoadTextureMaps(sideTexNames, out SideDiffTexture, out SideNormTexture, out SideSpecTexture);
+            if (SideDiffTexture == null)
             {
-                SideDiffuseTexture = defaultSideDiff;
+                SideDiffTexture = defaultSideDiff;
                 SideNormTexture = defaultSideNorm;
                 SideSpecTexture = defaultSideSpec;
             }
@@ -875,30 +908,30 @@ namespace CarnationVariableSectionPart
                 SideNormTexture = defaultEmptyNorm;
             if (SideSpecTexture == null)
                 SideSpecTexture = defaultEmptySpec;
-            LoadTextureMaps(EndTexNames, out EndDiffuseTexture, out EndNormTexture, out EndSpecTexture);
-            if (EndDiffuseTexture == null)
+            LoadTextureMaps(endTexNames, out EndsDiffTexture, out EndsNormTexture, out EndsSpecTexture);
+            if (EndsDiffTexture == null)
             {
-                EndDiffuseTexture = defaultEndDiffu;
-                EndNormTexture = defaultEndNorma;
-                EndSpecTexture = defaultEndSpecu;
+                EndsDiffTexture = defaultEndDiffu;
+                EndsNormTexture = defaultEndNorma;
+                EndsSpecTexture = defaultEndSpecu;
             }
-            if (EndNormTexture == null)
-                EndNormTexture = defaultEmptyNorm;
-            if (EndSpecTexture == null)
-                EndSpecTexture = defaultEmptySpec;
+            if (EndsNormTexture == null)
+                EndsNormTexture = defaultEmptyNorm;
+            if (EndsSpecTexture == null)
+                EndsSpecTexture = defaultEmptySpec;
         }
 
         private void LoadTextureMaps(string texNames, out Texture diffuseTexture, out Texture normTexture, out Texture specTexture)
         {
-            string[] names = SplitString(texNames, 3);
+            string[] names = SplitStringByComma(texNames, 3);
             var diffuseName = names[0];
             var normalName = names[1];
             var specName = names[2];
-            diffuseTexture = TryGetTextureFromLib(diffuseName);
-            normTexture = TryGetTextureFromLib(normalName);
-            specTexture = TryGetTextureFromLib(specName);
+            diffuseTexture = TryGetTextureFromLib(diffuseName, false);
+            normTexture = TryGetTextureFromLib(normalName, true);
+            specTexture = TryGetTextureFromLib(specName, false);
         }
-        private static Texture TryGetTextureFromLib(string fileName)
+        private static Texture TryGetTextureFromLib(string fileName, bool asNormal)
         {
             Texture result;
             if (fileName.IndexOf('.') < 1)
@@ -906,23 +939,23 @@ namespace CarnationVariableSectionPart
             else
             {
                 var path = TextureFolderPath + fileName;
-                string nameTruncated = fileName.Remove(fileName.LastIndexOf('.'));
-                if (TextureLib.ContainsKey(nameTruncated))
-                    result = TextureLib[nameTruncated];
+                if (TextureLib.ContainsKey(fileName))
+                    result = TextureLib[fileName];
                 else
                 {
-                    result = LoadTextureFromFile(path);
+                    result = CVSPUIManager.LoadTextureFromFile(path, asNormal);
                     if (result)
-                        TextureLib.Add(nameTruncated, result);
+                        TextureLib.Add(fileName, result);
                 }
             }
             return result;
         }
-        private string[] SplitString(string s, int count)
+        internal static string[] SplitStringByComma(string s, int count)
         {
-            //string[] result = new string[count];
-            //s = s.Replace(' ', '\0');
-            s = Regex.Replace(s, @"\s", "");
+            //dont remove spaces within words
+            s = Regex.Replace(s, " *, *", ",");
+            s = Regex.Replace(s, @"^\s+", "");
+            s = Regex.Replace(s, @"\s+$", "");
             string[] result = s.Split(',');
             if (result == null)
             {
@@ -941,38 +974,19 @@ namespace CarnationVariableSectionPart
             }
             return result;
         }
-
-        private static Texture LoadTextureFromFile(string path)
-        {
-            WWW w = new WWW(path);
-            Texture2D t2d = w.texture;
-            if (w.error != null)
-            {
-                Debug.LogError("[CarnationVariableSectionPart] Can't load Texture: " + w.error);
-                w.Dispose();
-                return null;
-            }
-            if (t2d == null)
-            {
-                Debug.LogError("[CarnationVariableSectionPart] Can't load Texture");
-                w.Dispose();
-                return null;
-            }
-            w.Dispose();
-            return t2d;
-        }
         private void Update()
         {
             if (HighLogic.LoadedSceneIsEditor)
             {
-                if (editing)
+                if (Model.transform.localScale != scale)
+                    Model.transform.localScale = scale;
+                if (gizmoEditing || uiEditing)
                 {
-                    if (!PartParamChanged)
-                        if ((Section0Radius != oldSection0Radius || Section1Radius != oldSection1Radius))
-                            PartParamChanged = true;
-                    if (PartParamChanged || startEdit)
+                    uiEditing = false;
+                    if (PartParamModified || startEdit)
                     {
-                        UpdateMaterials();
+                        if (startEdit)
+                            UpdateMaterials();
                         UpdateFuelTank();
                         UpdateCoM();
                         if (HighLogic.LoadedSceneIsEditor)
@@ -984,8 +998,12 @@ namespace CarnationVariableSectionPart
                                     Debug.LogError("[CarnationVariableSectionPart] Module not found on symmetry counter parts");
                                     break;
                                 }
-                                cvsp.Mf.mesh = Mf.mesh;
-                                cvsp.CopyParams(this);
+                                bool symetryMirror = this.part.symMethod == SymmetryMethod.Mirror;
+                                cvsp.CopyParamsFrom(this, symetryMirror);
+                                if (startEdit)
+                                    UpdateMaterials();
+                                if (symetryMirror)
+                                    cvsp.MirrorPart();
                                 cvsp.UpdateFuelTank();
                                 cvsp.UpdateCoM();
                                 cvsp.AttachChildPartToNode();
@@ -994,12 +1012,12 @@ namespace CarnationVariableSectionPart
                                 cvsp.DetachChildPartFromNode();
                                 cvsp.UpdateAttchNodePos();
                                 cvsp.UpdateAttchNodeSize();
+                                cvsp.UpdateSectionsVisiblity();
+                                if (symetryMirror)
+                                    cvsp.ForceUpdateGeometry();
+                                else
+                                    cvsp.Mf.mesh = Mf.mesh;
                             }
-                        //如果本零件刚刚复制了别的零件的尺寸形状，则需要更新位置
-                        if (!startEdit || forceUpdatedPos)
-                        {
-                            forceUpdatedPos = false;
-                        }
                         AttachChildPartToNode();
                         UpdateSectionTransforms();
                         UpdatePosition();
@@ -1015,31 +1033,63 @@ namespace CarnationVariableSectionPart
                     CVSPEditorTool.TryActivate();
                 }
             }
+            else if (CVSPMeshBuilder.BuildingCVSPForFlight)
+            {
+                CVSPUIManager.Instance.Close();
+                CVSPMeshBuilder.BuildingCVSPForFlight = false;
+                Debug.Log($"[CarnationVariableSectionPart] Created {CVSPMeshBuilder.MeshesBuiltForFlight} meshes in {CVSPMeshBuilder.GetBuildTime() * .001d:F2}s");
+            }
+        }
+
+        private void MirrorPart()
+        {
+            if (part.symmetryCounterparts.Count == 1)
+            {
+                //我不知道为何要这么计算
+                //idk why must I do this check
+                bool b = part.parent && part.parent.symmetryCounterparts.Count > 0 && part.parent.HasModuleImplementing<ModuleCarnationVariablePart>();
+                ModuleCarnationVariablePart cvsp = part.symmetryCounterparts[0].FindModuleImplementing<ModuleCarnationVariablePart>();
+                if (scale.z != -cvsp.scale.z)
+                    scale = Vector3.Scale(cvsp.scale, new Vector3(1, 1, -1));
+                if (Model.transform.localScale != scale)
+                    Model.transform.localScale = scale;
+                if (b)
+                {
+                    Run = -cvsp.Run;
+                    Raise = -cvsp.Raise;
+                }
+            }
         }
 
         private void UpdateAttchNodeSize()
         {
             var size0 = Mathf.Max(Section0Height, Section0Width);
             var size1 = Mathf.Max(Section1Height, Section1Width);
-            node0.size = (int)(/*node0.size **/(size0 / 1.25f));
-            node1.size = (int)(/*node1.size **/(size1 / 1.25f));
+            node0.size = (int)(size0 / 1.25f);
+            node1.size = (int)(size1 / 1.25f);
+            surfNode.position = Vector3.zero;
             surfNode.position.x = Mathf.Lerp(size0, size1, .5f) / 2f;
             surfNode.position = surfNode.position + CoMOffset;
         }
 
         public void OnEndEditing()
         {
-            editing = false;
+            gizmoEditing = false;
             startEdit = false;
             if (MeshBuilder != null)
             {
                 DestroyMeshBuilder();
             }
-            isSectionVisible = GetSectionsVisiblity();
+            UpdateSectionsVisiblity();
         }
         public void OnStartEditing()
         {
-            editing = true;
+            Part symRoot = part;
+            while (symRoot.parent && symRoot.parent.symmetryCounterparts.Count != 0)
+                symRoot = symRoot.parent;
+            if (symRoot == part)
+                ScreenMessages.PostScreenMessage($"this is symRoot", 0.5f, false);
+            gizmoEditing = true;
             startEdit = true;
             try
             {
@@ -1055,28 +1105,34 @@ namespace CarnationVariableSectionPart
             {
             }
             MeshBuilder.StartBuilding(Mf, this);
-            //if (HighLogic.LoadedSceneIsEditor)
             MeshBuilder.MakeDynamic();
             BackupParametersBeforeEdit();
-            GetNodePairsTransform();
-            //如果本零件刚刚复制了别的零件的尺寸形状，则需要更新位置
-            if (CVSPEditorTool.PreserveParameters)
-                forceUpdatedPos = true;
-            //Secttion0Transform.localPosition = Vector3.zero;
-            //Secttion1Transform.localPosition = Vector3.zero;
+            if (part.symmetryCounterparts != null)
+            {
+                int l = part.symmetryCounterparts.Count;
+                for (int i = 0; i < l; i++)
+                {
+                    var cvsp = part.symmetryCounterparts[i].FindModuleImplementing<ModuleCarnationVariablePart>();
+                    if (cvsp)
+                        cvsp.BackupParametersBeforeEdit();
+                }
+            }
+            CVSPUIManager.Instance.Open();
+            CVSPUIManager.Instance.Expand();
         }
         /// <summary>
         /// 编辑器中调用
         /// </summary>
         /// <returns></returns>
-        private Vector2 GetSectionsVisiblity()
+        private void UpdateSectionsVisiblity()
         {
+            calculatedSectionVisiblity = new bool?[] { new bool?(), new bool?() };
             Vector2 result = new Vector2(1, 1);
             UpdateSectionsVisiblity(nodeIDSec0);
             UpdateSectionsVisiblity(nodeIDSec1);
             result.x = calculatedSectionVisiblity[0].Value ? +1 : -1;
             result.y = calculatedSectionVisiblity[1].Value ? +1 : -1;
-            return result;
+            isSectionVisible = result;
         }
 
         private void UpdateSectionsVisiblity(int nodeID)
@@ -1165,17 +1221,17 @@ namespace CarnationVariableSectionPart
             secIDThis *= 4;
             secIDOther *= 4;
             for (int i = 0; i < 4; i++)
-                if (!IsIndentical(getCornerRadius(i + secIDThis), other.getCornerRadius(i + secIDOther)))
+                if (!IsIndentical(GetCornerRadius(i + secIDThis), other.GetCornerRadius(i + secIDOther)))
                     return false;
             return true;
         }
         private float SumCornerRadius(int sectionID)
         {
             sectionID *= 4;
-            return getCornerRadius(0 + sectionID)
-                 + getCornerRadius(1 + sectionID)
-                 + getCornerRadius(2 + sectionID)
-                 + getCornerRadius(3 + sectionID);
+            return GetCornerRadius(0 + sectionID)
+                 + GetCornerRadius(1 + sectionID)
+                 + GetCornerRadius(2 + sectionID)
+                 + GetCornerRadius(3 + sectionID);
         }
         private void BackupParametersBeforeEdit()
         {
@@ -1188,50 +1244,55 @@ namespace CarnationVariableSectionPart
             raiseBeforeEdit = Raise;
             lengthBeforeEdit = Length;
         }
+        internal void CorrectTwist(float oldTwist)
+        {
+            twistBeforeEdit = oldTwist;
+        }
         public static Vector3 Clone(Vector3 v) => new Vector3(v.x, v.y, v.z);
+        public static Vector4 Clone(Vector4 v) => new Vector4(v.x, v.y, v.z, v.w);
         public static Quaternion Clone(Quaternion q) => new Quaternion(q.x, q.y, q.z, q.w);
         private void DestroyMeshBuilder()
         {
             MeshBuilder.FinishBuilding(this);
         }
-        private void UpdateMaterials()
+        internal void UpdateMaterials()
         {
             if (MeshRender != null)
             {
+                Color color = new Color(colorTint.x, colorTint.y, colorTint.z);
+                if (!plainColorTexture)
+                    plainColorTexture = new Texture2D(2, 2);
+                plainColorTexture.SetPixels(new Color[] { color, color, color, color });
+                plainColorTexture.Apply();
                 if (MeshRender.sharedMaterials.Length != 2)
                     MeshRender.sharedMaterials = new Material[2]{
-                    new Material(CVSPEditorTool.BumpedShader){ color=new Color(.75f,.75f,.75f)},
-                    new Material(CVSPEditorTool.BumpedShader){ color=new Color(.75f,.75f,.75f)} };
+                        new Material(CVSPEditorTool.PartShader){ color=color},
+                        new Material(CVSPEditorTool.PartShader){ color=color}};
                 Material matEnds = MeshRender.sharedMaterials[0];
-                if (UseEndTexture)
+                matEnds.SetFloat("_Shininess", Mathf.Clamp((float)shininess / 1000f, .03f, 1f));
+                if (UseEndsTexture)
                 {
-                    if (matEnds.mainTexture == null)
-                    {
-                        matEnds.mainTexture = EndDiffuseTexture;
-                        matEnds.SetTexture("_BumpMap", EndNormTexture);
-                        matEnds.SetTexture("_SpecMap", EndSpecTexture);
-                    }
+                    matEnds.mainTexture = EndsDiffTexture;
+                    matEnds.SetTexture("_BumpMap", EndsNormTexture);
+                    matEnds.SetTexture("_SpecMap", EndsSpecTexture);
                 }
                 else
                 {
-                    matEnds.mainTexture = null;
+                    matEnds.mainTexture = plainColorTexture;
                     matEnds.SetTexture("_BumpMap", defaultEmptyNorm);
                     matEnds.SetTexture("_SpecMap", defaultEmptySpec);
                 }
                 Material matSides = MeshRender.sharedMaterials[1];
-                matSides.SetFloat("_Shininess", Mathf.Clamp((float)Shininess / 1000f, .03f, 1f));
+                matSides.SetFloat("_Shininess", Mathf.Clamp((float)shininess / 1000f, .03f, 1f));
                 if (UseSideTexture)
                 {
-                    if (MeshRender.sharedMaterials[1].mainTexture == null)
-                    {
-                        matSides.mainTexture = SideDiffuseTexture;
-                        matSides.SetTexture("_BumpMap", SideNormTexture);
-                        matSides.SetTexture("_SpecMap", SideSpecTexture);
-                    }
+                    matSides.mainTexture = SideDiffTexture;
+                    matSides.SetTexture("_BumpMap", SideNormTexture);
+                    matSides.SetTexture("_SpecMap", SideSpecTexture);
                 }
                 else
                 {
-                    matSides.mainTexture = null;
+                    matSides.mainTexture = plainColorTexture;
                     matSides.SetTexture("_BumpMap", defaultEmptyNorm);
                     matSides.SetTexture("_SpecMap", defaultEmptySpec);
                 }
@@ -1253,10 +1314,10 @@ namespace CarnationVariableSectionPart
             var maxArea = Section0Height * Section0Width / 4;
             //从方形面积扣除因倒圆少了的面积
             for (int i = 0; i < 4; i++)
-                section0Area += maxArea * (1 - AreaDifference * getCornerRadius(i));
+                section0Area += maxArea * (1 - AreaDifference * GetCornerRadius(i));
             maxArea = Section1Height * Section1Width / 4;
             for (int i = 4; i < 8; i++)
-                section1Area += maxArea * (1 - AreaDifference * getCornerRadius(i));
+                section1Area += maxArea * (1 - AreaDifference * GetCornerRadius(i));
         }
         private void CalcSurfaceArea()
         {
@@ -1268,10 +1329,10 @@ namespace CarnationVariableSectionPart
             section1Perimeter = 0;
             var maxPeri = (Section0Width + Section0Height) / 2;
             for (int i = 0; i < 4; i++)
-                section0Perimeter += maxPeri * (1 - PerimeterDifference * getCornerRadius(i));
+                section0Perimeter += maxPeri * (1 - PerimeterDifference * GetCornerRadius(i));
             maxPeri = (Section1Width + Section1Height) / 2;
             for (int i = 4; i < 8; i++)
-                section1Perimeter += maxPeri * (1 - PerimeterDifference * getCornerRadius(i));
+                section1Perimeter += maxPeri * (1 - PerimeterDifference * GetCornerRadius(i));
         }
         public float GetModuleCost(float defaultCost, ModifierStagingSituation sit)
         {
@@ -1304,29 +1365,74 @@ namespace CarnationVariableSectionPart
         {
             return ModifierChangeWhen.FIXED;
         }
+        int layer = 0;
+        internal bool uiEditing;
 
         private void OnGUI()
         {
-            //if (editing)
-            //{
-            //    GUI.Label(new Rect(200, 100, 150, 25), $"Twist:{Twist:F2}");
-            //}
-            //if (part.parent == null)
-            //{
-            //    if (Input.GetKeyDown(KeyCode.Keypad4))
-            //        part.attRotation = Quaternion.AngleAxis(-2f, Vector3.up) * part.attRotation;
-            //    else if (Input.GetKeyDown(KeyCode.Keypad6))
-            //        part.attRotation = Quaternion.AngleAxis(2f, Vector3.up) * part.attRotation;
-            //    else if (Input.GetKeyDown(KeyCode.Keypad2))
-            //        part.attRotation0 = Quaternion.AngleAxis(-2f, Vector3.forward) * part.attRotation0;
-            //    else if (Input.GetKeyDown(KeyCode.Keypad8))
-            //        part.attRotation0 = Quaternion.AngleAxis(2f, Vector3.forward) * part.attRotation0;
-            //    //  part.attRotation = part.attRotation0;
-            //    //  part.attachNodes[0].originalSecondaryAxis = part.attachNodes[0].secondaryAxis;
-            //    GUI.Label(new Rect(200, 130, 350, 25), $"attRotation :{part.attRotation}");
-            //    GUI.Label(new Rect(200, 160, 350, 25), $"attRotation0:{part.attRotation0}");
-
-            //}
+            if (gizmoEditing)
+            {
+                GUILayout.BeginArea(new Rect(200, 200, 140, 600));
+                GUILayout.BeginHorizontal();
+                GUILayout.Label($"GUI enable:{CVSPUIManager.Instance.isActiveAndEnabled}, Layer:{CVSPUIManager.Instance.gameObject.layer}");
+                bool d = GUILayout.Button("-");
+                GUILayout.Label("" + layer);
+                bool a = GUILayout.Button("+");
+                if (d)
+                    layer -= layer == 0 ? 0 : 1;
+                if (a)
+                    layer += layer == 31 ? 0 : 1;
+                if (a || d)
+                {
+                    foreach (Transform t in CVSPUIManager.Instance.transform.parent.GetComponentsInChildren<Transform>())
+                    {
+                        t.gameObject.layer = layer;
+                    }
+                }
+                GUILayout.EndHorizontal();
+                GUILayout.EndArea();
+                #region 细分等级调节的测试UI，细分功能暂不完善，没有用
+                /* GUILayout.BeginArea(new Rect(200, 200, 140, 600));
+                 GUILayout.BeginVertical();
+                 for (int i = 0; i < 8; i++)
+                 {
+                     GUILayout.BeginHorizontal();
+                     GUILayout.Label((i > 3 ? "Lower" : "Upper") + $" corner{i}:");
+                     bool d = GUILayout.Button("-");
+                     GUILayout.Label(subdivideLevels[i].ToString());
+                     bool a = GUILayout.Button("+");
+                    // 
+                     if (d)
+                     {
+                         subdivideLevels[i] /= 2;
+                        // 
+                     }
+                     else if (a)
+                     {
+                         if (subdivideLevels[i] > 0)
+                             subdivideLevels[i] *= 2;
+                         else subdivideLevels[i] = 1;
+                        // 
+                     }
+                     subdivideLevels[i] = Mathf.Clamp(subdivideLevels[i], 0, 8);
+                     GUILayout.EndHorizontal();
+                 }
+                 GUILayout.EndVertical();
+                 GUILayout.EndArea();*/
+                #endregion
+                //if (Input.GetKeyDown(KeyCode.Keypad4))
+                //    part.attRotation = Quaternion.AngleAxis(-2f, Vector3.up) * part.attRotation;
+                //else if (Input.GetKeyDown(KeyCode.Keypad6))
+                //    part.attRotation = Quaternion.AngleAxis(2f, Vector3.up) * part.attRotation;
+                //else if (Input.GetKeyDown(KeyCode.Keypad2))
+                //    part.attRotation0 = Quaternion.AngleAxis(-2f, Vector3.forward) * part.attRotation0;
+                //else if (Input.GetKeyDown(KeyCode.Keypad8))
+                //    part.attRotation0 = Quaternion.AngleAxis(2f, Vector3.forward) * part.attRotation0;
+                ////  part.attRotation = part.attRotation0;
+                ////  part.attachNodes[0].originalSecondaryAxis = part.attachNodes[0].secondaryAxis;
+                //GUI.Label(new Rect(200, 130, 350, 25), $"attRotation :{part.attRotation}");
+                //GUI.Label(new Rect(200, 160, 350, 25), $"attRotation0:{part.attRotation0}");
+            }
         }
     }
 }

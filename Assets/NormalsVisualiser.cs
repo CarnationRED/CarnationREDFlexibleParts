@@ -95,13 +95,30 @@ public class NormalsVisualizer : MonoBehaviour
     {
         for (int i = 0; i < mesh.vertexCount; i++)
         {
+                GL.Begin(GL.LINES);
+                GL.Vertex(transform.TransformPoint(mesh.vertices[i]));
+                GL.Vertex(transform.TransformPoint(mesh.vertices[i] + .25f * mesh.normals[i]));
+                GL.End();
+          //  GL.Begin(GL.LINES);
+          //  GL.Vertex(transform.TransformPoint(mesh.vertices[i]));
+          //  GL.Vertex(transform.TransformPoint(mesh.vertices[i] + .25f * toV3(mesh.tangents[i]) + Random.Range(-.03f, .03f) * mesh.normals[i]));
+          //  GL.End();
+        }
+        int[] tris = mesh.triangles;
+        int l = tris.Length-3;
+        Vector3[] verts = mesh.vertices;
+        for (int i = 0; i < l; i+=3)
+        {
             //    GL.Begin(GL.LINES);
             //    GL.Vertex(transform.TransformPoint(mesh.vertices[i]));
             //    GL.Vertex(transform.TransformPoint(mesh.vertices[i] + .25f * mesh.normals[i]));
             //    GL.End();
             GL.Begin(GL.LINES);
-            GL.Vertex(transform.TransformPoint(mesh.vertices[i]));
-            GL.Vertex(transform.TransformPoint(mesh.vertices[i] + .25f * toV3(mesh.tangents[i])));
+            var or = transform.TransformPoint(verts[tris[i]]);
+            GL.Vertex(or);
+            GL.Vertex(transform.TransformPoint(verts[tris[i+1]]));
+            GL.Vertex(transform.TransformPoint(verts[tris[i+2]]));
+            GL.Vertex(or);
             GL.End();
         }
     }
@@ -110,10 +127,10 @@ public class NormalsVisualizer : MonoBehaviour
     {
         private void OnPostRender()
         {
-            GL.Color(NormalsVisualizer.red);
+            GL.Color(red);
             GL.PushMatrix();
-            NormalsVisualizer.mat.SetPass(0);
-            foreach (var item in NormalsVisualizer.Instances)
+            mat.SetPass(0);
+            foreach (var item in Instances)
                 item.DrawNormals();
             GL.PopMatrix();
         }

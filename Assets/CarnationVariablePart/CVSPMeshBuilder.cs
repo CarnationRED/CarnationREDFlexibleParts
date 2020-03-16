@@ -186,16 +186,14 @@ namespace CarnationVariableSectionPart
         //private int[]    optimizedTris;
 
         private CVSPBodyEdge[] bodySides;
-        public int BodySides { get; protected set; }
-        public float[] RoundRadius { get => roundRadius; set => roundRadius = value; }
+        public const int BodySides = 4;
+        public float[] RoundRadius { get; set; }
 
         private Vector3[] vertices;
         private Vector3[] normals;
         private Vector3[] tangents;
         private Vector2[] uv;
         private int[] triangles;
-
-        private float[] roundRadius;
         private float[] oldRoundRadius;
 
         private Mesh mesh;
@@ -208,14 +206,19 @@ namespace CarnationVariableSectionPart
         private Quaternion qSection1InverseRotation;
         public static readonly int section0Center = 29;
         public static readonly int section1Center = 0;
+        internal static bool BuildingCVSPForFlight = false;
+        internal static int MeshesBuiltForFlight = 0;
 
         public static CVSPMeshBuilder Instance { get; } = new CVSPMeshBuilder();
+        internal ModuleCarnationVariablePart CurrentBuilding => cvsp;
         public void FinishBuilding(ModuleCarnationVariablePart variablePart)
         {
-            if (cvsp != variablePart)
-                Debug.LogError("[CarnationVariableSectionPart] CVSP build process is interrupted!");
-            if (!buildStarted)
-                Debug.LogError("[CarnationVariableSectionPart] There's no build process to end!");
+            //if (cvsp != variablePart)
+            //    Debug.LogError("[CarnationVariableSectionPart] CVSP build process is interrupted!");
+            ////else
+            ////    cvsp = null;
+           //if (!buildStarted)
+           //    Debug.LogError("[CarnationVariableSectionPart] There's no build process to end!");
             buildStarted = false;
         }
         public void StartBuilding(MeshFilter mf, ModuleCarnationVariablePart variablePart)
@@ -223,8 +226,6 @@ namespace CarnationVariableSectionPart
             cvsp = variablePart;
             buildStarted = true;
             for (int i = 0; i < isSectionVisible.Length; i++) isSectionVisible[i] = true;
-            Debug.Log("[CarnationVariableSectionPart] newing MeshBuilder");
-
 
             mesh = mf.mesh;
             if (mesh == null || !mesh.isReadable)
@@ -239,11 +240,8 @@ namespace CarnationVariableSectionPart
             }
             else
             {
-                //I cant't use mesh loaded from mu files, which causes problems, instead I always generate new mesh
-                // InstantiateMesh(mesh.vertices, mesh.triangles, mesh.uv);
                 InstantiateMesh();
             }
-            Debug.Log("[CarnationVariableSectionPart] newed MeshBuilder");
         }
         /// <summary>
         /// 无奈KSP存档不支持数组类型
@@ -258,7 +256,6 @@ namespace CarnationVariableSectionPart
         {
             RoundRadius = new float[] { 0, 0, 0, 0, 0, 0, 0, 0 };
             oldRoundRadius = new float[] { 0, 0, 0, 0, 0, 0, 0, 0 };
-            BodySides = 4;
             var temp = new List<CVSPBodyEdge>(BodySides);
             for (int i = 0; i < BodySides; i++)
                 temp.Add(new CVSPBodyEdge(i));
@@ -273,7 +270,7 @@ namespace CarnationVariableSectionPart
         private void InstantiateMesh(Vector3[] vs, int[] tr, Vector2[] uv)
         {
             sectionVerts = new Vector3[vs.Length];
-            vs.CopyTo(sectionVerts, 0);
+            //vs.CopyTo(sectionVerts, 0);
             sectionTris = new int[tr.Length];
             tr.CopyTo(sectionTris, 0);
             sectionUV = new Vector2[uv.Length];
@@ -453,7 +450,7 @@ namespace CarnationVariableSectionPart
                     v2 = midpoints[i + 4] - midpoints[i];
                 }
                 //叉乘获得边线中点法向量
-                midpointNorms[i] = Vector3.Cross(v2, v1);
+                midpointNorms[i] = Vector3.Cross(v2, v1).normalized;
                 //对截面1上的边线中点法线应用扭转
                 if (i >= 4) midpointNorms[i] = qSection1Rotation * midpointNorms[i];
             }
@@ -461,10 +458,10 @@ namespace CarnationVariableSectionPart
         /// <summary>
         /// 创建侧面
         /// </summary>
-        private void BuildBody()
+        private void BuildBody(int[] subdivideLevels)
         {
-            float uv1 = 1;
-            float uv0 = 1;
+            float uv1 = 1 + cvsp.SideOffsetU;
+            float uv0 = 1 + cvsp.SideOffsetU;
             Vector3[] newSecVerts = new Vector3[sectionVerts.Length + midpoints.Length];
             //用sectionVerts只能生成棱附近的面，用midpoints等信息来构建余下的面，补齐空洞
             sectionVerts.CopyTo(newSecVerts, 0);
@@ -476,15 +473,30 @@ namespace CarnationVariableSectionPart
             {
                 sectionCorners[i].CopyTo(newSecCorners0, 1);
                 newSecCorners0[0] = sectionVerts.Length + i;
-                newSecCorners0[newSecCorners0.Length - 1] = sectionVerts.Length + ((i + 1) % 4);
+                int ip1 = i + 1;
+                int ip1p4 = ip1 % 4;
+                newSecCorners0[newSecCorners0.Length - 1] = sectionVerts.Length + ip1p4;
 
-                sectionCorners[i + 4].CopyTo(newSecCorners1, 1);
-                newSecCorners1[0] = sectionVerts.Length + i + 4;
-                newSecCorners1[newSecCorners1.Length - 1] = sectionVerts.Length + 4 + ((i + 1) % 4);
-
-                bodySides[i].MakeStrip(newSecVerts, newSecCorners0, newSecCorners1, RoundRadius[i], RoundRadius[i + 4], uv0, uv1, out uv0, out uv1, cvsp);
+                int ip4 = i + 4;
+                sectionCorners[ip4].CopyTo(newSecCorners1, 1);
+                newSecCorners1[0] = sectionVerts.Length + ip4;
+                newSecCorners1[newSecCorners1.Length - 1] = sectionVerts.Length + 4 + ip1p4;
+                //U的缩放和偏移在MakeStrip内部实现，V的则在这里调用时就施加了
+                bodySides[i].MakeStrip(newSecVerts, newSecCorners0, newSecCorners1, RoundRadius[i], RoundRadius[ip4], uv0, uv1, out uv0, out uv1, cvsp, subdivideLevels[i], subdivideLevels[ip4], cvsp.SideOffsetV, cvsp.SideScaleV * (cvsp.RealWorldMapping ? cvsp.Length : 1f) + cvsp.SideOffsetV);
                 //设置边线中点法线
-                bodySides[i].SetEndsNorms(midpointNorms[i], midpointNorms[(i + 1) % 4], midpointNorms[i + 4], midpointNorms[4 + ((i + 1) % 4)], RoundRadius[i], RoundRadius[i + 4], cvsp);
+                bodySides[i].SetEndsNorms(midpointNorms[i], midpointNorms[ip1p4], midpointNorms[ip4], midpointNorms[4 + ip1p4], RoundRadius[i], RoundRadius[ip4], cvsp);
+                bodySides[i].MergeSubMesh();
+            }
+            for (int i = 0; i < BodySides; i++)
+            {
+                var curr = bodySides[i];
+                var next = bodySides[(i + 1) % BodySides];
+                var average = (curr.normals[curr.Section0EndID] + next.normals[next.Section0StartID]).normalized;
+                curr.normals[curr.Section0EndID] = average;
+                next.normals[next.Section0StartID] = average;
+                average = (curr.normals[curr.Section1EndID] + next.normals[next.Section1StartID]).normalized;
+                curr.normals[curr.Section1EndID] = average;
+                next.normals[next.Section1StartID] = average;
             }
         }
         /// <summary>
@@ -492,6 +504,8 @@ namespace CarnationVariableSectionPart
         /// </summary>
         private void CorrectSectionUV()
         {
+            sectionUV[0] = new Vector2(.5f * cvsp.EndScaleU + cvsp.EndOffsetU, .5f * cvsp.EndScaleV + cvsp.EndOffsetV);
+            sectionUV[29] = new Vector2(.5f * cvsp.EndScaleU + cvsp.EndOffsetU, .5f * cvsp.EndScaleV + cvsp.EndOffsetV);
             var widthGreater0 = cvsp.Section0Width > cvsp.Section0Height;
             var widthGreater1 = cvsp.Section1Width > cvsp.Section1Height;
             //跳过不可见的截面的计算
@@ -521,7 +535,7 @@ namespace CarnationVariableSectionPart
                         x = v.x;
                         z = v.z;
                     }
-                    if (!cvsp.SectionTiledMapping)
+                    if (!cvsp.EndsTiledMapping)
                     {
                         if (start < 4)
                         {
@@ -550,8 +564,8 @@ namespace CarnationVariableSectionPart
                             }
                         }
                     }
-                    sectionUV[corner[j]].x = num * 0.5f * (x + 1f) - Mathf.Min(0f, num);
-                    sectionUV[corner[j]].y = .5f * (1 + z);
+                    sectionUV[corner[j]].x = cvsp.EndScaleU * (num * 0.5f * (x + 1f) - Mathf.Min(0f, num)) + cvsp.EndOffsetU;
+                    sectionUV[corner[j]].y = cvsp.EndScaleV * (.5f * (1 + z)) + cvsp.EndOffsetV;
                 }
             }
         }
@@ -641,46 +655,45 @@ namespace CarnationVariableSectionPart
             if (RecalcNorm) mesh.RecalculateNormals();
             return result;
         }
-        static DateTime d = new DateTime(2000, 1, 1, 0, 0, 0, DateTimeKind.Utc);
-        static double now;
-        static void GetNow() => now = ((DateTime.UtcNow - d).TotalMilliseconds);
-        static double GetTimePassed()
+        private static DateTime d = new DateTime(2000, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+        private static double now;
+        private static void GetNow() => now = ((DateTime.UtcNow - d).TotalMilliseconds);
+        internal static double GetBuildTime()
         {
             var old = now;
             GetNow();
-            return now-old;
+            return now - old;
         }
-        public void Update(Vector4 section0Radius, Vector4 section1Radius)
+        public void Update(Vector4 section0Radius, Vector4 section1Radius, int[] subdivideLevels)
         {
-            GetNow();
-            roundRadius[0] = section0Radius.x;
-            roundRadius[1] = section0Radius.y;
-            roundRadius[2] = section0Radius.z;
-            roundRadius[3] = section0Radius.w;
-            roundRadius[4] = section1Radius.x;
-            roundRadius[5] = section1Radius.y;
-            roundRadius[6] = section1Radius.z;
-            roundRadius[7] = section1Radius.w;
+            if (!BuildingCVSPForFlight)
+            {
+                GetNow();
+                BuildingCVSPForFlight = true;
+                MeshesBuiltForFlight = 0;
+            }
+
+            RoundRadius[0] = section0Radius.x;
+            RoundRadius[1] = section0Radius.y;
+            RoundRadius[2] = section0Radius.z;
+            RoundRadius[3] = section0Radius.w;
+            RoundRadius[4] = section1Radius.x;
+            RoundRadius[5] = section1Radius.y;
+            RoundRadius[6] = section1Radius.z;
+            RoundRadius[7] = section1Radius.w;
             //扭转四元数，也代表了截面1的旋转
             qSection1Rotation = Quaternion.AngleAxis(cvsp.Twist, Vector3.up);
             qSection1InverseRotation = Quaternion.Inverse(qSection1Rotation);
             for (int i = 0; i < RoundRadius.Length; i++) BuildSectionCorner(i, RoundRadius[i]);
             for (int i = 0; i < RoundRadius.Length; i++) oldRoundRadius[i] = RoundRadius[i];
-            Debug.Log($"1.BuildSectionCorner:\t\t{GetTimePassed():F2} ms");
             OptimizeSections();
-            Debug.Log($"2.OptimizeSections:\t\t{GetTimePassed():F2} ms");
             ModifySections();
-            Debug.Log($"3.ModifySections:\t\t{GetTimePassed():F2} ms");
-            BuildBody();
-            Debug.Log($"4.BuildBody:\t\t\t{GetTimePassed():F2} ms");
+            BuildBody(subdivideLevels);
             CorrectSectionUV();
-            Debug.Log($"5.CorrectSectionUV:\t\t{GetTimePassed():F2} ms");
             MergeSectionAndBody();
-            Debug.Log($"6.MergeSectionAndBody:\t{GetTimePassed():F2} ms");
             var sepa = sectionTris.Length - DeleteHiddenSection();
-            Debug.Log($"7.DeleteHiddenSection:\t{GetTimePassed():F2} ms");
             Optimize(sepa);
-            Debug.Log($"8.Optimize:\t\t\t{GetTimePassed():F2} ms");
+            MeshesBuiltForFlight++;
         }
         private int DeleteHiddenSection()
         {
@@ -791,10 +804,14 @@ namespace CarnationVariableSectionPart
                 int n2 = tris[i + 2];
                 Vector3 v0 = verts[n0] - verts[n1];
                 Vector3 v1 = verts[n1] - verts[n2];
+                Vector3 v2 = verts[n2] - verts[n0];
                 Vector3 n = Vector3.Cross(v0, v1).normalized;
-                normals[n0] += n;
-                normals[n1] += n;
-                normals[n2] += n;
+                float a0 = Vector3.SignedAngle(-v0, v2, n);
+                float a1 = Vector3.SignedAngle(-v1, v0, n);
+                float a2 = 180 - a0 - a1;
+                normals[n0] += n * a0;
+                normals[n1] += n * a1;
+                normals[n2] += n * a2;
             }
             for (int i = 0; i < normals.Length; i++)
                 normals[i].Normalize();

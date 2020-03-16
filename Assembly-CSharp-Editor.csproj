@@ -8,7 +8,8 @@
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
     <ProductVersion>10.0.20506</ProductVersion>
     <SchemaVersion>2.0</SchemaVersion>
-    <RootNamespace></RootNamespace>
+    <RootNamespace>
+    </RootNamespace>
     <ProjectGuid>{10F91360-C1D8-92D4-5F82-CE7CCBDA2466}</ProjectGuid>
     <OutputType>Library</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
@@ -665,9 +666,9 @@
       <Project>{0F2AD5B3-D1D0-D88E-48AB-56E685CD2CCE}</Project>
       <Name>Assembly-CSharp-firstpass</Name>
     </ProjectReference>
-    <ProjectReference Include="Assembly-CSharp.csproj">
+    <ProjectReference Include="CarnationVariableSectionPart.csproj">
       <Project>{B3FCABB3-00B1-7ECD-D048-B39F6A629ED1}</Project>
-      <Name>Assembly-CSharp</Name>
+      <Name>CarnationVariableSectionPart</Name>
     </ProjectReference>
     <ProjectReference Include="Assembly-CSharp-Editor-firstpass.csproj">
       <Project>{79A196CA-B58E-54DD-4CCC-A157047719E6}</Project>

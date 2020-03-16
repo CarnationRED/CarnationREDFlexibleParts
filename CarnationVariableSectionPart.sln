@@ -1,13 +1,17 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio 15
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Assembly-CSharp", "Assembly-CSharp.csproj", "{B3FCABB3-00B1-7ECD-D048-B39F6A629ED1}"
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.29806.167
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CarnationVariableSectionPart", "CarnationVariableSectionPart.csproj", "{B3FCABB3-00B1-7ECD-D048-B39F6A629ED1}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Assembly-CSharp-firstpass", "Assembly-CSharp-firstpass.csproj", "{0F2AD5B3-D1D0-D88E-48AB-56E685CD2CCE}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Assembly-CSharp-Editor", "Assembly-CSharp-Editor.csproj", "{10F91360-C1D8-92D4-5F82-CE7CCBDA2466}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Assembly-CSharp-Editor-firstpass", "Assembly-CSharp-Editor-firstpass.csproj", "{79A196CA-B58E-54DD-4CCC-A157047719E6}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "C", "..\CarnationVariableSectionPart - Copy\C.csproj", "{BE8D1A8D-A0A1-9E5D-750B-A758CD8992C8}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -31,8 +35,15 @@ Global
 		{79A196CA-B58E-54DD-4CCC-A157047719E6}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{79A196CA-B58E-54DD-4CCC-A157047719E6}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{79A196CA-B58E-54DD-4CCC-A157047719E6}.Release|Any CPU.Build.0 = Release|Any CPU
+		{BE8D1A8D-A0A1-9E5D-750B-A758CD8992C8}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{BE8D1A8D-A0A1-9E5D-750B-A758CD8992C8}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{BE8D1A8D-A0A1-9E5D-750B-A758CD8992C8}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{BE8D1A8D-A0A1-9E5D-750B-A758CD8992C8}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {4A839FDB-8C48-4E22-8054-72EEB64E3A10}
 	EndGlobalSection
 EndGlobal
