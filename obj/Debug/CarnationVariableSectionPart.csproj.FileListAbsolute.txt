@@ -1,3 +1,4 @@
+C:\Users\8500G5M\KSPPlugins\KSP181\CarnationVariableSectionPart\obj\Debug\CarnationVariableSectionPart.csprojAssemblyReference.cache
 C:\Users\8500G5M\KSPPlugins\KSP181\CarnationVariableSectionPart\Temp\bin\Debug\CarnationVariableSectionPart.dll
 C:\Users\8500G5M\KSPPlugins\KSP181\CarnationVariableSectionPart\Temp\bin\Debug\CarnationVariableSectionPart.pdb
 C:\Users\8500G5M\KSPPlugins\KSP181\CarnationVariableSectionPart\Temp\bin\Debug\Boo.Lang.dll
@@ -203,6 +204,7 @@ C:\Users\8500G5M\KSPPlugins\KSP181\CarnationVariableSectionPart\Temp\bin\Debug\U
 C:\Users\8500G5M\KSPPlugins\KSP181\CarnationVariableSectionPart\Temp\bin\Debug\UnityEngine.VRModule.dll
 C:\Users\8500G5M\KSPPlugins\KSP181\CarnationVariableSectionPart\Temp\bin\Debug\UnityEngine.WindModule.dll
 C:\Users\8500G5M\KSPPlugins\KSP181\CarnationVariableSectionPart\Temp\bin\Debug\UnityEngine.XRModule.dll
+C:\Users\8500G5M\KSPPlugins\KSP181\CarnationVariableSectionPart\Temp\bin\Debug\Assembly-CSharp-firstpass.dll
 C:\Users\8500G5M\KSPPlugins\KSP181\CarnationVariableSectionPart\Temp\bin\Debug\Unity.Cecil.dll
 C:\Users\8500G5M\KSPPlugins\KSP181\CarnationVariableSectionPart\Temp\bin\Debug\Unity.SerializationLogic.dll
 C:\Users\8500G5M\KSPPlugins\KSP181\CarnationVariableSectionPart\Temp\bin\Debug\Unity.Legacy.NRefactory.dll
@@ -212,15 +214,13 @@ C:\Users\8500G5M\KSPPlugins\KSP181\CarnationVariableSectionPart\Temp\bin\Debug\B
 C:\Users\8500G5M\KSPPlugins\KSP181\CarnationVariableSectionPart\Temp\bin\Debug\Boo.Lang.Parser.dll
 C:\Users\8500G5M\KSPPlugins\KSP181\CarnationVariableSectionPart\Temp\bin\Debug\Boo.Lang.Useful.dll
 C:\Users\8500G5M\KSPPlugins\KSP181\CarnationVariableSectionPart\Temp\bin\Debug\Unity.CecilTools.dll
+C:\Users\8500G5M\KSPPlugins\KSP181\CarnationVariableSectionPart\Temp\bin\Debug\CarnationVariableSectionPart_UI.pdb
 C:\Users\8500G5M\KSPPlugins\KSP181\CarnationVariableSectionPart\Temp\bin\Debug\UnityEditor.xml
 C:\Users\8500G5M\KSPPlugins\KSP181\CarnationVariableSectionPart\Temp\bin\Debug\Unity.Timeline.Editor.pdb
 C:\Users\8500G5M\KSPPlugins\KSP181\CarnationVariableSectionPart\Temp\bin\Debug\Unity.VSCode.Editor.pdb
 C:\Users\8500G5M\KSPPlugins\KSP181\CarnationVariableSectionPart\Temp\bin\Debug\Unity.CollabProxy.Editor.pdb
 C:\Users\8500G5M\KSPPlugins\KSP181\CarnationVariableSectionPart\Temp\bin\Debug\Unity.Rider.Editor.pdb
 C:\Users\8500G5M\KSPPlugins\KSP181\CarnationVariableSectionPart\Temp\bin\Debug\UnityEditor.UI.pdb
-C:\Users\8500G5M\KSPPlugins\KSP181\CarnationVariableSectionPart\obj\Debug\CarnationVariableSectionPart.csprojAssemblyReference.cache
 C:\Users\8500G5M\KSPPlugins\KSP181\CarnationVariableSectionPart\obj\Debug\CarnationVariableSectionPart.csproj.CopyComplete
 C:\Users\8500G5M\KSPPlugins\KSP181\CarnationVariableSectionPart\obj\Debug\CarnationVariableSectionPart.dll
 C:\Users\8500G5M\KSPPlugins\KSP181\CarnationVariableSectionPart\obj\Debug\CarnationVariableSectionPart.pdb
-C:\Users\8500G5M\KSPPlugins\KSP181\CarnationVariableSectionPart\Temp\bin\Debug\Assembly-CSharp-firstpass.dll
-C:\Users\8500G5M\KSPPlugins\KSP181\CarnationVariableSectionPart\Temp\bin\Debug\CarnationVariableSectionPart_UI.pdb

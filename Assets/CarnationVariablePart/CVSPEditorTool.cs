@@ -4,6 +4,9 @@ using System;
 using CarnationVariableSectionPart.UI;
 using System.Collections;
 using KSP.Localization;
+using System.Reflection;
+using System.Collections.Generic;
+using System.Linq;
 
 namespace CarnationVariableSectionPart
 {
@@ -62,6 +65,7 @@ namespace CarnationVariableSectionPart
         HandleGizmo.ModifierType.X,
         HandleGizmo.ModifierType.Y,
         HandleGizmo.ModifierType.X };
+
         private static Camera editorCamera;
         private static float GAME_HIGHLIGHTFACTOR;
         private static float MinDimension = 0.5f;
@@ -81,8 +85,14 @@ namespace CarnationVariableSectionPart
         public static bool EditorToolActivated = false;
         private static GameObject _gameObject = null;
         private static Shader bumpedSpecShader;
-        private static float Twist, Length, Run, Raise, Section0Width, Section0Height, Section1Width, Section1Height;
+        private static float Twist, Tilt0, Tilt1, Length, Run, Raise, Section0Width, Section0Height, Section1Width, Section1Height;
         private static float[] CornerRadius = new float[8];
+
+        private static bool WaitingForPartAttach;
+        private static Part CVSPPartSpawned;
+        private static CVSPPartInfo CVSPInfoSpawned;
+        private static MethodInfo Read;
+
 
         public static CVSPEditorTool Instance
         {
@@ -136,6 +146,96 @@ namespace CarnationVariableSectionPart
 
         public static bool PreserveParameters { get; private set; }
 
+        private void Start()
+        {
+            GameEvents.onPartAttach.Add(new EventData<GameEvents.HostTargetAction<Part, Part>>.OnEvent(ApplyTransformForCreatedCVSP));
+            GameEvents.onVesselLoaded.Add((Vessel v) =>
+            {
+                if (HighLogic.LoadedSceneIsEditor && GameUILocked)
+                {
+                    EditorLogic.fetch.Unlock("CVSPEditorTool");
+                    GameUILocked = false;
+                }
+            });
+            GameEvents.OnVesselRollout.Add((ShipConstruct c) =>
+            {
+                CVSPUIManager.Instance.Close();
+            });
+
+            if (Read == null)
+            {
+                Read = typeof(DatabaseLoaderTexture_DDS).GetMethod("Read", BindingFlags.Instance | BindingFlags.NonPublic);
+            }
+        }
+        //Local symetry
+        private static string autoLOC_6001218 = Localizer.GetStringByTag("#autoLOC_6001218");
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="data">target:self, host:parent</param>
+        private void ApplyTransformForCreatedCVSP(GameEvents.HostTargetAction<Part, Part> data)
+        {
+            if (WaitingForPartAttach)
+            {
+                if (CVSPPartSpawned)
+                {
+                    CVSPPartSpawned.transform.position = CVSPInfoSpawned.position;
+                    CVSPPartSpawned.transform.rotation = CVSPInfoSpawned.orientation;
+
+                    int symCount = CVSPPartSpawned.symmetryCounterparts.Count;
+                    if (symCount > 0)
+                    {
+                        Vector3 symAixs;
+                        Vector3 symRootPos;
+                        Transform symRootTransform;
+                        if (EditorLogic.fetch.coordSpaceText.text == autoLOC_6001218)
+                        {
+                            if (!CVSPPartSpawned.parent) return;
+                            symRootTransform = CVSPPartSpawned.parent.partTransform;
+                        }
+                        else
+                        {
+                            symRootTransform = EditorLogic.fetch.ship.parts[0].localRoot.partTransform;
+                        }
+                        symAixs = symRootTransform.up;
+                        symRootPos = symRootTransform.position;
+                        if (CVSPPartSpawned.symMethod == SymmetryMethod.Radial)
+                        {
+                            var angleIncrement = 360f / (symCount + 1);
+                            for (int i = 0; i < CVSPPartSpawned.symmetryCounterparts.Count;)
+                            {
+                                Part p = CVSPPartSpawned.symmetryCounterparts[i];
+                                p.partTransform.rotation = CVSPPartSpawned.partTransform.rotation;
+                                p.partTransform.position = CVSPPartSpawned.partTransform.position;
+                                p.partTransform.RotateAround(symRootPos, symAixs, angleIncrement * (++i));
+                            }
+                        }
+                        else
+                        {
+                            Part symPart = CVSPPartSpawned.symmetryCounterparts[0];
+                            if (!symPart) return;
+                            var cvsp = symPart.FindModuleImplementing<ModuleCarnationVariablePart>();
+                            if (cvsp)
+                            {
+                                cvsp.scale = new Vector3(cvsp.scale.x, cvsp.scale.y, -cvsp.scale.z);
+
+                                CVSPPartSpawned.partTransform.rotation.ToAngleAxis(out float angle, out Vector3 axis);
+                                var localAxis = symRootTransform.InverseTransformVector(axis);
+                                axis = symRootTransform.TransformVector(new Vector3(-localAxis.x, localAxis.y, localAxis.z));
+                                symPart.partTransform.rotation = Quaternion.AngleAxis(-angle, axis);
+                                var offset = CVSPPartSpawned.partTransform.position - symRootPos;
+                                var localOffset = symRootTransform.InverseTransformVector(offset);
+                                offset = symRootTransform.TransformVector(new Vector3(-localOffset.x, localOffset.y, localOffset.z));
+                                symPart.partTransform.position = offset + symRootPos;
+                            }
+                        }
+                    }
+
+                    WaitingForPartAttach = false;
+                }
+            }
+        }
+
         private void Load()
         {
             if (prefab == null && !assetLoading)
@@ -162,52 +262,104 @@ namespace CarnationVariableSectionPart
         {
             AssetBundle b = AssetBundle.LoadFromFile(path);
             GameObject original = b.LoadAsset("Canvas") as GameObject;
-            //??????????what am I doing
-            //original.transform.localScale = Vector3.zero;
+            EdgeVisualizer.mat =/* new Material*/(b.LoadAsset<Material>("lines"));
+            CapsuleRay.getPartModel += (Collider col) =>
+            {
+                var part = col.GetComponentInParent<Part>();
+                if (!part) return null;
+                Transform model = part.partTransform.Find("model");
+                MeshFilter[] mf = model.GetComponentsInChildren<MeshFilter>();
+                return mf;
+            };
             var canvas = Instantiate(original);
-            CVSPUIManager.onValueChanged += CVSPUIManager_OnValueChanged;
-            CVSPUIManager.getLocalizedString += CVSPUIManager_GetLocalizedString;
-            CVSPUIManager.getSnapAndFineTuneState += CVSPUIManager_GetSnapAndFineTuneState;
             b.Unload(false);
+
+            CVSPUIManager.onValueChanged += CVSPUIManager_OnValueChanged;
+            CVSPUIManager.getLocalizedString += (string tag) =>
+            {
+                if (Localizer.TryGetStringByTag(tag, out string s))
+                    return s;
+                else return tag;
+            };
+            CVSPUIManager.getSnapAndFineTuneState += (ref bool snap, ref bool finetune) =>
+            {
+                snap = GameSettings.VAB_USE_ANGLE_SNAP;
+                finetune = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
+            };
+            CVSPUIManager.getEditorCamera += () => EditorCamera;
+            CVSPUIManager.createCVSP += SpawnCVSP;
+            CVSPUIManager.postGameScreenMsg += (string s) => ScreenMessages.PostScreenMessage(s, 2f, ScreenMessageStyle.UPPER_RIGHT, Color.magenta);
+            CVSPUIManager.lockGameUI += (bool loc) =>
+            {
+                if (loc)
+                {
+                    if (!GameUILocked)
+                    {
+                        //参考了B9PW里面的用法，起源ferram4
+                        EditorLogic.fetch.Lock(false, false, false, "CVSPEditorTool");
+                        GameUILocked = true;
+                    }
+                }
+                else if (GameUILocked)
+                {
+                    EditorLogic.fetch.Unlock("CVSPEditorTool");
+                    GameUILocked = false;
+                }
+            };
+
+            CVSPResourceSwitcher.onResourceSwithed += (string s) =>
+            {
+                DetermineWhichToModify();
+                if (uiEditingPart)
+                {
+                    var keyValuePair = ModuleCarnationVariablePart.ResourceString.FirstOrDefault(q => q.Value == s);
+                    var key = keyValuePair.Key;
+                    uiEditingPart.tankTypeEn = key;
+                    uiEditingPart.UpdateCostWidget();
+                    foreach (var item in uiEditingPart.part.symmetryCounterparts)
+                    {
+                        item.FindModuleImplementing<ModuleCarnationVariablePart>().UpdateCostWidget();
+                    }
+                    // lastUIModifiedPart.UpdateFuelTank();
+                }
+            };
+            CVSPResourceSwitcher.Resources = ModuleCarnationVariablePart.ResourceString.Values.ToArray();
+
+
             Debug.Log("[CarnationVariableSectionPart] GUI loaded");
             yield return new WaitForSecondsRealtime(1.0f);
-            //canvas.transform.localScale = Vector3.one;
         }
-
-        private void CVSPUIManager_GetSnapAndFineTuneState(ref bool snap, ref bool finetune)
+        void DetermineWhichToModify()
         {
-            snap = GameSettings.VAB_USE_ANGLE_SNAP;
-            finetune = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
-        }
-
-        private string CVSPUIManager_GetLocalizedString(string tag)
-        {
-            if (Localizer.TryGetStringByTag(tag, out string s))
-                return s;
-            else return tag;
+            if (partModule)
+            {
+                uiEditingPart = partModule;
+            }
+            else
+            {
+                if (lastUIModifiedPart)
+                    uiEditingPart = lastUIModifiedPart;
+                else
+                {
+                    CVSPUIManager.Instance.Close();
+                    return;
+                }
+            }
         }
         int calledtame = 0;
         private void CVSPUIManager_OnValueChanged(Texture2D t2d, TextureTarget target, string path)
         {
-            if (partModule)
-                uiEditingPart = partModule;
-            else if (lastUIModifiedPart)
-                uiEditingPart = lastUIModifiedPart;
-            else
-            {
-                CVSPUIManager.Instance.Close();
-                return;
-            }
+            DetermineWhichToModify();
             calledtame++;
             Debug.Log("Called time" + calledtame + " part y:" + uiEditingPart.part.transform.position.y); ;
             uiEditingPart.uiEditing = true;
 
-            var oldEnds                   /**/   = uiEditingPart.endTexNames;
-            var oldSide                   /**/   = uiEditingPart.sideTexNames;
-            var useEnds                   /**/   = uiEditingPart.UseEndsTexture;
-            var useSide                   /**/   = uiEditingPart.UseSideTexture;
-            var oldShine                  /**/   = uiEditingPart.Shininess;
-            var oldTint                   /**/   = uiEditingPart.colorTint;
+            var oldEnds    /**/   = uiEditingPart.endTexNames;
+            var oldSide    /**/   = uiEditingPart.sideTexNames;
+            var useEnds    /**/   = uiEditingPart.UseEndsTexture;
+            var useSide    /**/   = uiEditingPart.UseSideTexture;
+            var oldShine   /**/   = uiEditingPart.Shininess;
+            var oldTint    /**/   = uiEditingPart.colorTint;
             if (t2d)
             {//选择了贴图
                 uiEditingPart.SetTexture(t2d, target, path);
@@ -231,6 +383,8 @@ namespace CarnationVariableSectionPart
                 uiEditingPart.Section1Height     /**/   = ui.Section1Height;
                 uiEditingPart.Length             /**/   = ui.Length;
                 uiEditingPart.Twist              /**/   = ui.Twist;
+                uiEditingPart.Tilt0              /**/   = ui.Tilt0;
+                uiEditingPart.Tilt1              /**/   = ui.Tilt1;
                 uiEditingPart.Run                /**/   = ui.Run;
                 uiEditingPart.Raise              /**/   = ui.Raise;
                 uiEditingPart.SideOffsetU        /**/   = ui.SideOffsetU;
@@ -283,6 +437,8 @@ namespace CarnationVariableSectionPart
             ui.Section1Height     /**/   = partModule.Section1Height;
             ui.Length             /**/   = partModule.Length;
             ui.Twist              /**/   = partModule.Twist;
+            ui.Tilt0              /**/   = partModule.Tilt0;
+            ui.Tilt1              /**/   = partModule.Tilt1;
             ui.Run                /**/   = partModule.Run;
             ui.Raise              /**/   = partModule.Raise;
             ui.SideOffsetU        /**/   = partModule.SideOffsetU;
@@ -302,6 +458,10 @@ namespace CarnationVariableSectionPart
             ui.CornerUVCorrection /**/   = partModule.CornerUVCorrection;
             ui.RealWorldMapping   /**/   = partModule.RealWorldMapping;
             ui.EndsTiledMapping   /**/   = partModule.EndsTiledMapping;
+
+            string str = ModuleCarnationVariablePart.ResourceString[partModule.tankTypeEn];
+            if (CVSPResourceSwitcher.Instance) CVSPResourceSwitcher.Instance.SwitchTo(str);
+            else CVSPResourceSwitcher.defaultResources = str;
             var r = new float[8];
             for (int i = 0; i < 8; i++) r[i] = partModule.GetCornerRadius(i);
             ui.Radius = r;
@@ -367,11 +527,25 @@ namespace CarnationVariableSectionPart
         {
             if (!EditorToolActivated)
             {
+                foreach (var i in module.part.localRoot.ship.Parts)
+                {
+                    var model = i.partTransform.Find("model");
+                    if (model)
+                    {
+                        var cols = model.GetComponentsInChildren<Collider>();
+                        if (cols != null)
+                            foreach (var col in cols)
+                            {
+                                Debug.Log($"part: {i.name}, col: {col.gameObject.name}, acti: {col.enabled} lyr: {col.gameObject.layer}");
+                            }
+                    }
+                }
+
                 if (lastUIModifiedPart)
                     lastUIModifiedPart.CleanChild();
                 lastUIModifiedPart = partModule = module;
                 partModule.OnStartEditing();
-                if (PreserveParameters) partModule.CorrectTwist(oldTwist);
+                if (PreserveParameters) partModule.CorrectTwistAndTilts(oldTwist, oldTilts);
                 SetupGizmos();
                 CalcGizmosSize();
 
@@ -460,6 +634,7 @@ namespace CarnationVariableSectionPart
                                 if (PreserveParameters)
                                 {
                                     oldTwist = cvsp.Twist;
+                                    oldTilts = new Vector2(cvsp.Tilt0, cvsp.Tilt1);
                                     CopyParamsTo(cvsp);
                                 }
                                 //参数复制后，再启动编辑
@@ -477,6 +652,8 @@ namespace CarnationVariableSectionPart
         private void CopyParamsFormPart()
         {
             Twist = partModule.Twist;
+            Tilt0 = partModule.Tilt0;
+            Tilt1 = partModule.Tilt1;
             Raise = partModule.Raise;
             Run = partModule.Run;
             Length = partModule.Length;
@@ -501,6 +678,8 @@ namespace CarnationVariableSectionPart
             cvsp.Section1Height =   /**/ Section1Height;
             cvsp.Section1Width =    /**/ Section1Width;
             cvsp.Twist =            /**/ Twist;
+            cvsp.Tilt0 =            /**/ Tilt0;
+            cvsp.Tilt1 =            /**/ Tilt1;
             cvsp.Raise =            /**/ Raise;
             cvsp.Run =              /**/ Run;
             cvsp.Length =           /**/ Length;
@@ -513,21 +692,17 @@ namespace CarnationVariableSectionPart
             cvsp.Section1Radius.z = /**/ CornerRadius[6];
             cvsp.Section1Radius.w = /**/ CornerRadius[7];
             var old = Instance.lastUIModifiedPart;
-            cvsp.colorTint          /**/ = ModuleCarnationVariablePart.Clone(old.colorTint);
-            cvsp.Shininess    /**/ = old.Shininess;
+            cvsp.colorTint          /**/ = (old.colorTint);
+            cvsp.Shininess          /**/ = old.Shininess;
             cvsp.EndsDiffTexture    /**/ = old.EndsDiffTexture;
             cvsp.EndsNormTexture    /**/ = old.EndsNormTexture;
             cvsp.EndsSpecTexture    /**/ = old.EndsSpecTexture;
             cvsp.SideDiffTexture    /**/ = old.SideDiffTexture;
             cvsp.SideNormTexture    /**/ = old.SideNormTexture;
             cvsp.SideSpecTexture    /**/ = old.SideSpecTexture;
-            cvsp.UseEndsTexture     /**/ = old.UseEndsTexture;
-            cvsp.UseSideTexture     /**/ = old.UseSideTexture;
-            cvsp.CornerUVCorrection /**/ = old.CornerUVCorrection;
-            cvsp.RealWorldMapping   /**/ = old.RealWorldMapping;
-            cvsp.EndsTiledMapping   /**/ = old.EndsTiledMapping;
-            cvsp.uvOffsets          /**/ = ModuleCarnationVariablePart.Clone(old.uvOffsets);
-            cvsp.uvScales           /**/ = ModuleCarnationVariablePart.Clone(old.uvScales);
+            cvsp.mappingOptions     /**/ = old.mappingOptions;
+            cvsp.uvOffsets          /**/ = (old.uvOffsets);
+            cvsp.uvScales           /**/ = (old.uvScales);
         }
 
         internal static void OnPartDestroyed()
@@ -541,6 +716,7 @@ namespace CarnationVariableSectionPart
         private static float offsetInterval;
         private bool GameUILocked;
         private static float oldTwist;
+        private static Vector2 oldTilts;
         private bool requestUIUpdate;
         internal ModuleCarnationVariablePart lastUIModifiedPart;
         internal ModuleCarnationVariablePart uiEditingPart;
@@ -686,24 +862,6 @@ namespace CarnationVariableSectionPart
         {
             calledtame = 0;
             if (!EditorToolActivated) return;
-            bool mouseOverUI = CVSPUIManager.Instance.MouseOverUI;
-            if (mouseOverUI)
-            {
-                if (!GameUILocked)
-                {
-                    //参考了B9PW里面的用法，起源ferram4
-                    EditorLogic.fetch.Lock(false, false, false, "CVSPEditorTool");
-                    GameUILocked = true;
-                }
-            }
-            else
-            {
-                if (GameUILocked)
-                {
-                    EditorLogic.fetch.Unlock("CVSPEditorTool");
-                    GameUILocked = false;
-                }
-            }
             var b0 = Vector3.Dot(EditorCamera.transform.forward, partSection0.transform.up) < .1f;
             var b1 = Vector3.Dot(EditorCamera.transform.forward, partSection1.transform.up) < .1f;
             if (!sec0FacingUser.HasValue || b0 != sec0FacingUser.Value)
@@ -724,7 +882,7 @@ namespace CarnationVariableSectionPart
                     h1.hidden = !sec1FacingUser.Value;
                 }
             }
-            if (!mouseDragging && !mouseOverUI)
+            if (!mouseDragging && !CVSPUIManager.Instance.MouseOverUI)
             {
                 if (Input.GetKeyDown(KeyCode.Mouse0))
                 {
@@ -872,29 +1030,63 @@ namespace CarnationVariableSectionPart
             var t = g.transform;
             for (int i = 0; i < t.childCount; i++)
             {
-                t.GetChild(i).GetComponent<HandleGizmo>().OnValueChanged += OnModifierValueChanged;
+                Transform transform1 = t.GetChild(i);
+                HandleGizmo handleGizmo = transform1.GetComponent<HandleGizmo>();
+                if (handleGizmo) handleGizmo.OnValueChanged += OnModifierValueChanged;
             }
         }
         private void RemoveEvents(GameObject g)
         {
+            if (!g) return;
             var t = g.transform;
             for (int i = 0; i < t.childCount; i++)
             {
-                t.GetChild(i).GetComponent<HandleGizmo>().OnValueChanged -= OnModifierValueChanged;
+                HandleGizmo handleGizmo = t.GetChild(i).GetComponent<HandleGizmo>();
+                if (handleGizmo) handleGizmo.OnValueChanged -= OnModifierValueChanged;
             }
         }
-        /*private void OnDestroy()
+        private void SpawnCVSP(CVSPPartInfo info)
         {
-            for (int j = 0; j < transform.childCount; j++)
+            if (ModuleCarnationVariablePart.PartDragging)
             {
-                var t = transform.GetChild(0);
-                for (int i = 0; i < t.childCount; i++)
-                {
-                    var h = t.GetChild(0);
-                    CVSPParameters.Destroy(h.gameObject);
-                }
-                CVSPParameters.Destroy(t.gameObject);
+                string s = "#LOC_CVSP_WRN_PartDragging";
+                Localizer.TryGetStringByTag(s, out s);
+                ScreenMessages.PostScreenMessage(s, 2f, ScreenMessageStyle.UPPER_RIGHT, Color.magenta);
+                return;
             }
-        }*/
+
+            CVSPInfoSpawned = info;
+
+            GameEvents.onEditorPartEvent.Add(CaptureCreatedPart);
+
+            EditorLogic.fetch.SpawnPart(ModuleCarnationVariablePart.partInfo);
+
+            GameEvents.onEditorPartEvent.Remove(CaptureCreatedPart);
+
+            WaitingForPartAttach = true;
+        }
+        void CaptureCreatedPart(ConstructionEventType type, Part p)
+        {
+            //if (type == ConstructionEventType.PartCreated)
+            {
+                p.attPos0 = Vector3.zero;
+                p.attRotation = Quaternion.identity;
+                p.transform.rotation = p.initRotation;
+                var c = p.FindModuleImplementing<ModuleCarnationVariablePart>();
+                c.Section0Width = CVSPInfoSpawned.width;
+                c.Section1Width = CVSPInfoSpawned.width;
+                c.Section0Height = CVSPInfoSpawned.height0;
+                c.Section1Height = CVSPInfoSpawned.height1;
+                c.Length = CVSPInfoSpawned.length;
+                c.Twist = CVSPInfoSpawned.twist;
+                c.Tilt0 = CVSPInfoSpawned.tilt0;
+                c.Tilt1 = CVSPInfoSpawned.tilt1;
+                c.Section0Radius = Vector4.zero;
+                c.Section1Radius = Vector4.zero;
+                c.UseEndsTexture = false;
+                c.UseSideTexture = false;
+                CVSPPartSpawned = p;
+            }
+        }
     }
 }

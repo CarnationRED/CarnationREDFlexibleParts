@@ -138,24 +138,24 @@ namespace CarnationVariableSectionPart
         /// </summary>
         private Vector3[] midpointNorms = originMidpointNorms.Clone() as Vector3[];
         private static readonly Vector3[] originMidpoints = {
-  new Vector3(-1,  1,  0  ),
-  new Vector3( 0,  1,  1  ),
-  new Vector3( 1,  1,  0  ),
-  new Vector3( 0,  1, -1  ),
-  new Vector3(-1, -1,  0  ),
-  new Vector3( 0, -1,  1  ),
-  new Vector3( 1, -1,  0  ),
-  new Vector3( 0, -1, -1  )};
+                                                             new Vector3(-1,  1,  0  ),
+                                                             new Vector3( 0,  1,  1  ),
+                                                             new Vector3( 1,  1,  0  ),
+                                                             new Vector3( 0,  1, -1  ),
+                                                             new Vector3(-1, -1,  0  ),
+                                                             new Vector3( 0, -1,  1  ),
+                                                             new Vector3( 1, -1,  0  ),
+                                                             new Vector3( 0, -1, -1  )};
 
         private static readonly Vector3[] originMidpointNorms = {
-  new Vector3(  1, 0,  0),
-  new Vector3(  0, 0, -1),
-  new Vector3( -1, 0,  0),
-  new Vector3(  0, 0,  1),
-  new Vector3(  1, 0,  0),
-  new Vector3(  0, 0, -1),
-  new Vector3( -1, 0,  0),
-  new Vector3(  0, 0,  1)};
+                                                             new Vector3(  1, 0,  0),
+                                                             new Vector3(  0, 0, -1),
+                                                             new Vector3( -1, 0,  0),
+                                                             new Vector3(  0, 0,  1),
+                                                             new Vector3(  1, 0,  0),
+                                                             new Vector3(  0, 0, -1),
+                                                             new Vector3( -1, 0,  0),
+                                                             new Vector3(  0, 0,  1)};
         /// <summary>
         /// 每个圆角相对于第一象限内的roundCorner绕Y轴旋转的角度
         /// </summary>
@@ -204,6 +204,8 @@ namespace CarnationVariableSectionPart
         public static bool RecalcNorm;
         private Quaternion qSection1Rotation;
         private Quaternion qSection1InverseRotation;
+        private Quaternion qSection0Rotation;
+        private Quaternion qSection0InverseRotation;
         public static readonly int section0Center = 29;
         public static readonly int section1Center = 0;
         internal static bool BuildingCVSPForFlight = false;
@@ -217,8 +219,8 @@ namespace CarnationVariableSectionPart
             //    Debug.LogError("[CarnationVariableSectionPart] CVSP build process is interrupted!");
             ////else
             ////    cvsp = null;
-           //if (!buildStarted)
-           //    Debug.LogError("[CarnationVariableSectionPart] There's no build process to end!");
+            //if (!buildStarted)
+            //    Debug.LogError("[CarnationVariableSectionPart] There's no build process to end!");
             buildStarted = false;
         }
         public void StartBuilding(MeshFilter mf, ModuleCarnationVariablePart variablePart)
@@ -397,7 +399,6 @@ namespace CarnationVariableSectionPart
             //应用缩放->应用扭转->应用偏移
             sectionVerts[section0Center] = cvsp.Section0Transform.localPosition;
             sectionVerts[section1Center] = cvsp.Section1Transform.localPosition;
-            Vector3 offset = qSection1Rotation * new Vector3(cvsp.Run, 0, cvsp.Raise);
             for (int i = 0; i < 8; i++)
             {
                 for (int j = 0; j < sectionCorners[0].Length; j++)
@@ -406,16 +407,29 @@ namespace CarnationVariableSectionPart
                     var v1 = sectionVerts[sectionCorners[i][j]];
                     v1.x *= (i < 4 ? cvsp.Section0Width : cvsp.Section1Width) / 2f;
                     v1.z *= (i < 4 ? cvsp.Section0Height : cvsp.Section1Height) / 2f;
+                    //更新长度方向位置
+                    v1.y = i < 4 ? cvsp.Section0Transform.localPosition.y : cvsp.Section1Transform.localPosition.y;
                     if (i >= 4)
                     {
-                        //应用扭转：截面1
+                        var yTemp = Vector3.up * v1.y;
+                        //先把y置零，以防y影响tilt变换
+                        v1 -= yTemp;
+                        //应用扭转\Tilt：截面1
                         v1 = qSection1Rotation * v1;
+                        v1 += yTemp;
                         //应用偏斜：截面1
                         v1.x += cvsp.Run;
                         v1.z += cvsp.Raise;
                     }
-                    //更新长度方向位置
-                    v1.y = i < 4 ? cvsp.Section0Transform.localPosition.y : cvsp.Section1Transform.localPosition.y;
+                    else
+                    {
+                        var yTemp = Vector3.up * v1.y;
+                        //先把y置零，以防y影响tilt变换
+                        v1 -= yTemp;
+                        //应用Tilt：截面0
+                        v1 = qSection0Rotation * v1;
+                        v1 += yTemp;
+                    }
                     sectionVerts[sectionCorners[i][j]] = v1;
                 }
                 //缩放截面上边线中点
@@ -423,16 +437,29 @@ namespace CarnationVariableSectionPart
                 //缩放截面到指定的长宽
                 v.x *= (i < 4 ? cvsp.Section0Width : cvsp.Section1Width) / 2f;
                 v.z *= (i < 4 ? cvsp.Section0Height : cvsp.Section1Height) / 2f;
+                //更新长度方向位置
+                v.y = i < 4 ? cvsp.Section0Transform.localPosition.y : cvsp.Section1Transform.localPosition.y;
                 if (i >= 4)
                 {
+                    var yTemp = Vector3.up * v.y;
+                    //先把y置零，以防y影响tilt变换
+                    v -= yTemp;
                     //对截面1上的边线中点应用扭转
                     v = qSection1Rotation * v;
+                    v += yTemp;
                     //应用偏斜：截面1上的边线中点
                     v.x += cvsp.Run;
                     v.z += cvsp.Raise;
                 }
-                //更新长度方向位置
-                v.y = i < 4 ? cvsp.Section0Transform.localPosition.y : cvsp.Section1Transform.localPosition.y;
+                else
+                {
+                    var yTemp = Vector3.up * v.y;
+                    //先把y置零，以防y影响tilt变换
+                    v -= yTemp;
+                    //应用Tilt：截面0
+                    v = qSection0Rotation * v;
+                    v += yTemp;
+                }
                 midpoints[i] = v;
             }
             for (int i = 0; i < 8; i++)
@@ -508,6 +535,8 @@ namespace CarnationVariableSectionPart
             sectionUV[29] = new Vector2(.5f * cvsp.EndScaleU + cvsp.EndOffsetU, .5f * cvsp.EndScaleV + cvsp.EndOffsetV);
             var widthGreater0 = cvsp.Section0Width > cvsp.Section0Height;
             var widthGreater1 = cvsp.Section1Width > cvsp.Section1Height;
+            var zScale0 = Mathf.Cos(cvsp.Tilt0 * Mathf.Deg2Rad);
+            var zScale1 = Mathf.Cos(cvsp.Tilt1 * Mathf.Deg2Rad);
             //跳过不可见的截面的计算
             int start = isSectionVisible[0] ? 0 : (isSectionVisible[1] ? 4 : 8);
             int end = isSectionVisible[1] ? 8 : 4;
@@ -523,11 +552,13 @@ namespace CarnationVariableSectionPart
                     {
                         x = sectionVerts[corner[j]].x - cvsp.Run;
                         z = sectionVerts[corner[j]].z - cvsp.Raise;
+                        z /= zScale1;
                     }
                     else
                     {
                         x = sectionVerts[corner[j]].x;
                         z = sectionVerts[corner[j]].z;
+                        z /= zScale0;
                     }
                     if (start > 3)
                     {
@@ -681,9 +712,11 @@ namespace CarnationVariableSectionPart
             RoundRadius[5] = section1Radius.y;
             RoundRadius[6] = section1Radius.z;
             RoundRadius[7] = section1Radius.w;
-            //扭转四元数，也代表了截面1的旋转
-            qSection1Rotation = Quaternion.AngleAxis(cvsp.Twist, Vector3.up);
+            //扭转Twist和倾斜Tilt的四元数，代表了截面1的旋转
+            qSection1Rotation = Quaternion.AngleAxis(cvsp.Twist, Vector3.up) * Quaternion.AngleAxis(cvsp.Tilt1, Vector3.right);
             qSection1InverseRotation = Quaternion.Inverse(qSection1Rotation);
+            qSection0Rotation = Quaternion.AngleAxis(cvsp.Tilt0, Vector3.right);
+            qSection0InverseRotation = Quaternion.Inverse(qSection0Rotation);
             for (int i = 0; i < RoundRadius.Length; i++) BuildSectionCorner(i, RoundRadius[i]);
             for (int i = 0; i < RoundRadius.Length; i++) oldRoundRadius[i] = RoundRadius[i];
             OptimizeSections();
@@ -767,10 +800,7 @@ namespace CarnationVariableSectionPart
         {
             return new Vector3(origin.x, origin.y, origin.z);
         }
-        public static Vector2 VectorCopy(Vector2 origin)
-        {
-            return new Vector2(origin.x, origin.y);
-        }
+        public static Vector2 VectorCopy(Vector2 origin) => new Vector2(origin.x, origin.y);
         public static Vector4 VectorCopy(Vector3 origin, float w)
         {
             return new Vector4(origin.x, origin.y, origin.z, w);

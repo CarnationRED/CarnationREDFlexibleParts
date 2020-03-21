@@ -10,6 +10,7 @@ namespace CarnationVariableSectionPart
     {
         internal float LastEvaluatedTime { get; set; }
         internal List<object> OldValues { get; set; }
-        internal bool ValueChangedInCurrentFrame { get; set; }
+        internal bool CachedValueChangedInCurrentFrame { get; set; }
+        internal bool IgnoreValueChangeOnce { get; set; }
     }
 }

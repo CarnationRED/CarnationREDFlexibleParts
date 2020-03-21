@@ -29,6 +29,11 @@ namespace CarnationVariableSectionPart
             if (!AttributesRetrieved) RetrieveAttributes();
             if (Time.unscaledTime - part.LastEvaluatedTime > Time.unscaledDeltaTime)
             {
+                if (part.IgnoreValueChangeOnce)
+                {
+                    part.IgnoreValueChangeOnce = false;
+                    return part.CachedValueChangedInCurrentFrame = false;
+                }
                 var oldValues = part.OldValues;
                 part.LastEvaluatedTime = Time.unscaledTime;
                 int count = parameters.Count;
@@ -43,12 +48,12 @@ namespace CarnationVariableSectionPart
                     if (!currValue.Equals(oldValues[i]))
                     {
                         oldValues[i] = currValue;
-                        return part.ValueChangedInCurrentFrame = true;
+                        return part.CachedValueChangedInCurrentFrame = true;
                     }
                 }
-                return part.ValueChangedInCurrentFrame = false;
+                return part.CachedValueChangedInCurrentFrame = false;
             }
-            else return part.ValueChangedInCurrentFrame;
+            else return part.CachedValueChangedInCurrentFrame;
         }
 
         private static void RetrieveAttributes()

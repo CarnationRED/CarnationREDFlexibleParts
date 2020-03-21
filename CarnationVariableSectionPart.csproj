@@ -140,6 +140,7 @@
     <Compile Include="Assets\CarnationVariablePart\IParameterMonitor.cs" />
     <Compile Include="Assets\CarnationVariablePart\ModuleCarnationVariablePart.cs" />
     <Compile Include="Assets\CarnationVariablePart\InvertOnMirrorSymetry.cs" />
+    <Compile Include="Assets\CVSPResourceDefinitionLoader.cs" />
     <Compile Include="Assets\NormalsVisualiser.cs" />
     <Compile Include="Assets\ObjExporterScript.cs" />
     <None Include="Assets\SquadCore\Shaders\DepthMask.shader" />
