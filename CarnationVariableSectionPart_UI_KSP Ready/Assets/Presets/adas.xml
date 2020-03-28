@@ -1,0 +1,9 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<SectionInfo name="adas">
+  <width>12.502142</width>
+  <height>12.502142</height>
+  <radius_lower__left>0.107540704</radius_lower__left>
+  <radius_lower_right>0.107540704</radius_lower_right>
+  <radius_upper__left>0.107540704</radius_upper__left>
+  <radius_upper_right>0.107540704</radius_upper_right>
+</SectionInfo>

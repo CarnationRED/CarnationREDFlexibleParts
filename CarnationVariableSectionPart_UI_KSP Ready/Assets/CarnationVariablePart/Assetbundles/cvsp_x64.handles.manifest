@@ -1,0 +1,30 @@
+ManifestFileVersion: 0
+CRC: 746591230
+Hashes:
+  AssetFileHash:
+    serializedVersion: 2
+    Hash: b5571fc71363114f41afa1bfcf5dcd58
+  TypeTreeHash:
+    serializedVersion: 2
+    Hash: 3b74127212e29a1f85721a8e1ce45f3c
+HashAppended: 0
+ClassTypes:
+- Class: 1
+  Script: {instanceID: 0}
+- Class: 4
+  Script: {instanceID: 0}
+- Class: 21
+  Script: {instanceID: 0}
+- Class: 23
+  Script: {instanceID: 0}
+- Class: 33
+  Script: {instanceID: 0}
+- Class: 43
+  Script: {instanceID: 0}
+- Class: 48
+  Script: {instanceID: 0}
+- Class: 64
+  Script: {instanceID: 0}
+Assets:
+- Assets/CarnationVariablePart/Assetbundles/handles.prefab
+Dependencies: []

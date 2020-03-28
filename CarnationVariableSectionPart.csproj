@@ -2,6 +2,7 @@
 <Project ToolsVersion="4.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <PropertyGroup>
     <LangVersion>latest</LangVersion>
+    <TargetFrameworkProfile />
   </PropertyGroup>
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
@@ -12,8 +13,8 @@
     <ProjectGuid>{B3FCABB3-00B1-7ECD-D048-B39F6A629ED1}</ProjectGuid>
     <OutputType>Library</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
-    <AssemblyName>CarnationVariableSectionPart</AssemblyName>
-    <TargetFrameworkVersion>v4.7.1</TargetFrameworkVersion>
+    <AssemblyName>CarnationREDFlexiblePart</AssemblyName>
+    <TargetFrameworkVersion>v4.8</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <BaseDirectory>.</BaseDirectory>
   </PropertyGroup>
@@ -27,6 +28,7 @@
     <WarningLevel>4</WarningLevel>
     <NoWarn>0169</NoWarn>
     <AllowUnsafeBlocks>False</AllowUnsafeBlocks>
+    <GenerateSerializationAssemblies>Off</GenerateSerializationAssemblies>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <DebugType>pdbonly</DebugType>
@@ -58,6 +60,9 @@
     <Reference Include="Assembly-CSharp, Version=0.0.0.0, Culture=neutral, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
       <HintPath>..\refs_old\Assembly-CSharp.dll</HintPath>
+    </Reference>
+    <Reference Include="FerramAerospaceResearch">
+      <HintPath>E:\SteamLibrary\steamapps\common\Kerbal Space Program181\GameData\FerramAerospaceResearch\Plugins\FerramAerospaceResearch.dll</HintPath>
     </Reference>
     <Reference Include="I18N, Version=2.0.5.0, Culture=neutral, PublicKeyToken=0738eb9f132ed756, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
@@ -107,6 +112,9 @@
       <SpecificVersion>False</SpecificVersion>
       <HintPath>..\refs_old\Mono.Security.dll</HintPath>
     </Reference>
+    <Reference Include="RealFuels">
+      <HintPath>E:\SteamLibrary\steamapps\common\Kerbal Space Program181\GameData\RealFuels\Plugins\RealFuels.dll</HintPath>
+    </Reference>
     <Reference Include="TDx.TDxInput, Version=1.1.0.0, Culture=neutral, PublicKeyToken=3bbf7d14b78dc9f5, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
       <EmbedInteropTypes>True</EmbedInteropTypes>
@@ -132,65 +140,18 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Assets\CarnationVariablePart\CVSPBodyEdge.cs" />
-    <Compile Include="Assets\CarnationVariablePart\CVSPEditorTool.cs" />
-    <Compile Include="Assets\CarnationVariablePart\CVSPMeshBuilder.cs" />
-    <Compile Include="Assets\CarnationVariablePart\CVSPField.cs" />
-    <Compile Include="Assets\CarnationVariablePart\HandleGizmo.cs" />
-    <Compile Include="Assets\CarnationVariablePart\IParameterMonitor.cs" />
-    <Compile Include="Assets\CarnationVariablePart\ModuleCarnationVariablePart.cs" />
-    <Compile Include="Assets\CarnationVariablePart\InvertOnMirrorSymetry.cs" />
-    <Compile Include="Assets\CVSPResourceDefinitionLoader.cs" />
-    <Compile Include="Assets\NormalsVisualiser.cs" />
-    <Compile Include="Assets\ObjExporterScript.cs" />
-    <None Include="Assets\SquadCore\Shaders\DepthMask.shader" />
-    <None Include="Assets\TextMesh Pro\Resources\LineBreaking Leading Characters.txt" />
-    <None Include="Assets\XML\cvsp_x64.mats_bundle.xml" />
-    <None Include="Assets\TextMesh Pro\Resources\Shaders\TMP_Bitmap-Mobile.shader" />
-    <None Include="Assets\SquadCore\Shaders\ParticleAlpha.shader" />
-    <None Include="Assets\SquadCore\Shaders\EmissiveSpecular.shader" />
-    <None Include="Assets\SquadCore\Shaders\AlphaBlendedZSorted.shader" />
-    <None Include="Assets\SquadCore\Shaders\CutoffBumped.shader" />
-    <None Include="Assets\TextMesh Pro\Resources\Shaders\TMPro_Surface.cginc" />
-    <None Include="Assets\SquadCore\Shaders\ScrollingUnlit.shader" />
-    <None Include="Assets\TextMesh Pro\Resources\Shaders\TMP_SDF-Surface.shader" />
-    <None Include="Assets\SquadCore\Shaders\SpecularBumpTransparent.shader" />
-    <None Include="Assets\SquadCore\Shaders\Bumped.shader" />
-    <None Include="Assets\TextMesh Pro\Resources\Shaders\TMP_SDF.shader" />
-    <None Include="Assets\SquadCore\LightingKSP.cginc" />
-    <None Include="Assets\SquadCore\Shaders\Emissive.shader" />
-    <None Include="Assets\XML\cvsp_x64_bundle.xml" />
-    <None Include="Assets\TextMesh Pro\Resources\Shaders\TMP_SDF-Mobile Overlay.shader" />
-    <None Include="Assets\TextMesh Pro\Resources\Shaders\TMPro_Properties.cginc" />
-    <None Include="Assets\SquadCore\Shaders\Unlit.shader" />
-    <None Include="Assets\SquadCore\Shaders\BumpedSpecular.shader" />
-    <None Include="Assets\TextMesh Pro\Resources\Shaders\TMP_SDF-Surface-Mobile.shader" />
-    <None Include="Assets\TextMesh Pro\Resources\Shaders\TMP_SDF Overlay.shader" />
-    <None Include="Assets\TextMesh Pro\Resources\Shaders\TMPro.cginc" />
-    <None Include="Assets\TextMesh Pro\Resources\Shaders\TMP_SDF-Mobile Masking.shader" />
-    <None Include="Assets\XML\cvsp_x64.handles_bundle.xml" />
-    <None Include="Assets\SquadCore\Shaders\Cutoff.shader" />
-    <None Include="Assets\SquadCore\Shaders\SpecularTransparent.shader" />
-    <None Include="Assets\TextMesh Pro\Resources\Shaders\TMP_Bitmap.shader" />
-    <None Include="Assets\TextMesh Pro\Resources\Shaders\TMP_Sprite.shader" />
-    <None Include="Assets\SquadCore\Shaders\BumpedSpecularMapped.shader" />
-    <None Include="Assets\TextMesh Pro\Resources\Shaders\TMP_SDF-Mobile.shader" />
-    <None Include="Assets\SquadCore\Shaders\EmissiveBumpedSpecular.shader" />
-    <None Include="Assets\TextMesh Pro\Resources\LineBreaking Following Characters.txt" />
-    <None Include="Assets\SquadCore\Shaders\UnlitColor.shader" />
-    <None Include="Assets\SquadCore\Shaders\AlphaSpecular.shader" />
-    <None Include="Assets\SquadCore\Shaders\Diffuse.shader" />
-    <None Include="Assets\SquadCore\Shaders\Alpha.shader" />
-    <None Include="Assets\SquadCore\Shaders\Specular.shader" />
-    <None Include="Assets\SquadCore\Shaders\LightwrapSpecular.shader" />
-    <None Include="Assets\SquadCore\Shaders\InternalSpace.shader" />
-    <None Include="Assets\SquadCore\Shaders\AlphaAdditive.shader" />
-    <None Include="Assets\SquadCore\Shaders\KSPParticle AddSmooth.shader" />
-    <None Include="Assets\SquadCore\Shaders\UnlitTransparent.shader" />
-    <None Include="Assets\SquadCore\Shaders\SolidColorAlpha.shader" />
-    <None Include="Assets\SquadCore\Shaders\ParticleAdd.shader" />
-    <None Include="Assets\SquadCore\Shaders\EmissiveBumpedSpecularMapped.shader" />
-    <None Include="Assets\SquadCore\Shaders\SpecularCutoff.shader" />
+    <Compile Include="CarnationVariableSectionPart\Drawing.cs" />
+    <Compile Include="CarnationVariableSectionPart\CVSPBodyEdge.cs" />
+    <Compile Include="CarnationVariableSectionPart\CVSPEditorTool.cs" />
+    <Compile Include="CarnationVariableSectionPart\CVSPMeshBuilder.cs" />
+    <Compile Include="CarnationVariableSectionPart\CVSPField.cs" />
+    <Compile Include="CarnationVariableSectionPart\FARAPI.cs" />
+    <Compile Include="CarnationVariableSectionPart\HandleGizmo.cs" />
+    <Compile Include="CarnationVariableSectionPart\IParameterMonitor.cs" />
+    <Compile Include="CarnationVariableSectionPart\ModuleCarnationVariablePart.cs" />
+    <Compile Include="CarnationVariableSectionPart\InvertOnMirrorSymetry.cs" />
+    <Compile Include="CarnationVariableSectionPart\RFAPI.cs" />
+    <Compile Include="CarnationVariableSectionPart\CVSPConfigs.cs" />
     <Reference Include="Unity.Timeline.Editor">
       <HintPath>C:/Users/8500G5M/KSPPlugins/KSP181/CarnationVariableSectionPart/Library/ScriptAssemblies/Unity.Timeline.Editor.dll</HintPath>
     </Reference>
@@ -757,7 +718,7 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\CarnationVariableSectionPart - Copy\C.csproj">
+    <ProjectReference Include="..\CarnationVariableSectionPart_UI\C.csproj">
       <Project>{be8d1a8d-a0a1-9e5d-750b-a758cd8992c8}</Project>
       <Name>C</Name>
     </ProjectReference>

@@ -1,0 +1,9 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<SectionInfo name="fast">
+  <width>3</width>
+  <height>1.25</height>
+  <radius_lower__left>-0.25</radius_lower__left>
+  <radius_lower_right>1</radius_lower_right>
+  <radius_upper__left>-0.25</radius_upper__left>
+  <radius_upper_right>1</radius_upper_right>
+</SectionInfo>
