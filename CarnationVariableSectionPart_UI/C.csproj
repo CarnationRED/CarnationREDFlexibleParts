@@ -89,6 +89,9 @@
     <Compile Include="Assets\CarnationVariableSectionPart_UI\DatabaseLoaderTexture_DDS.cs" />
     <Compile Include="Assets\CarnationVariableSectionPart_UI\EdgeVisualizer.cs" />
     <Compile Include="Assets\CarnationVariableSectionPart_UI\SectionInfo.cs" />
+    <Compile Include="Assets\CarnationVariableSectionPart_UI\Switcher.cs" />
+    <Compile Include="Assets\CarnationVariableSectionPart_UI\TextureDefinition.cs" />
+    <Compile Include="Assets\CarnationVariableSectionPart_UI\TextureDefinitionSwitcher.cs" />
     <Reference Include="UnityEngine.UI">
       <HintPath>E:\SteamLibrary\steamapps\common\Kerbal Space Program\KSP_x64_Data\Managed\UnityEngine.UI.dll</HintPath>
     </Reference>

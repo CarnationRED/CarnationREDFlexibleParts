@@ -316,8 +316,8 @@ namespace CarnationVariableSectionPart.UI
 
                 length = mainAxis.magnitude;
                 orientation = Quaternion.LookRotation(-zAxis, -mainAxis);
-                if (Mathf.Abs(tilt0) > 45f) CVSPUIManager.PostMessage($"#LOC_CVSP_Tilt0 {tilt0.ToString("#0.#")} #LOC_CVSP_OutOfLimit #LOC_CVSP_NeedHelp");
-                if (Mathf.Abs(tilt1) > 45f) CVSPUIManager.PostMessage($"#LOC_CVSP_Tilt1 {tilt1.ToString("#0.#")} #LOC_CVSP_OutOfLimit #LOC_CVSP_NeedHelp");
+                if (Mathf.Abs(tilt0) > 45f) CVSPUIManager.PostMessage($"#LOC_CVSP_Tilt {tilt0.ToString("#0.#")} #LOC_CVSP_OutOfLimit #LOC_CVSP_NeedHelp");
+                if (Mathf.Abs(tilt1) > 45f) CVSPUIManager.PostMessage($"#LOC_CVSP_Tilt {tilt1.ToString("#0.#")} #LOC_CVSP_OutOfLimit #LOC_CVSP_NeedHelp");
                 if (height0 > 20f) CVSPUIManager.PostMessage($"#LOC_CVSP_Height 0 {height0.ToString("#0.#")} #LOC_CVSP_OutOfLimit #LOC_CVSP_NeedHelp");
                 if (height1 > 20f) CVSPUIManager.PostMessage($"#LOC_CVSP_Height 1 {height1.ToString("#0.#")} #LOC_CVSP_OutOfLimit #LOC_CVSP_NeedHelp");
                 if (length > 20f) CVSPUIManager.PostMessage($"#LOC_CVSP_Length {length.ToString("#0.#")} #LOC_CVSP_OutOfLimit #LOC_CVSP_NeedHelp");

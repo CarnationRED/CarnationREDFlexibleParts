@@ -252,7 +252,7 @@ namespace CarnationVariableSectionPart
                 {
                     _MeshRender = Model.GetComponent<Renderer>();
                     if (_MeshRender == null)
-                        Debug.Log("[CarnationREDFlexiblePart] No Mesh Renderer found");
+                        Debug.Log("[CRFP] No Mesh Renderer found");
                 }
                 return _MeshRender;
             }
@@ -267,7 +267,7 @@ namespace CarnationVariableSectionPart
                     //if (HighLogic.LoadedSceneIsEditor)
                     model = GetComponentInChildren<MeshFilter>().gameObject;
                     if (model == null)
-                        Debug.Log("[CarnationREDFlexiblePart] No Mesh Filter found");
+                        Debug.Log("[CRFP] No Mesh Filter found");
                     //else
                     //    model.AddComponent<NormalsVisualizer>();
                 }
@@ -418,15 +418,21 @@ namespace CarnationVariableSectionPart
 
         internal static Vector3[] UI_Corners = new Vector3[8];
         internal static Vector3[] UI_Corners_Dir = new Vector3[8];
-
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="newt2d"></param>
+        /// <param name="target"></param>
+        /// <param name="path">sth like "Texture\some folder\tex.dds"</param>
         internal void SetTexture(Texture2D newt2d, TextureTarget target, string path)
         {
             var t2d = newt2d;
             if (TextureLib.ContainsKey(path))
             {
-                Destroy(TextureLib[path]);
-                TextureLib[path] = newt2d;
-                t2d = TextureLib[path];
+                //if (TextureLib[path] != newt2d)
+                //    Destroy(TextureLib[path]);
+                //TextureLib[path] = newt2d;
+                //t2d = TextureLib[path];
             }
             else TextureLib.Add(path, t2d);
 
@@ -487,19 +493,19 @@ namespace CarnationVariableSectionPart
             TextureLib.Add("end_d.dds", defaultEndDiffu);
             TextureLib.Add("end_n.dds", defaultEndNorma);
             TextureLib.Add("end_s.dds", defaultEndSpecu);
-            GameDatabase.TextureInfo ti;
-            int offset = "CarnationVariableSectionPart/Texture/".Length;
-            while ((ti =
-                        GameDatabase.Instance.databaseTexture.FirstOrDefault(
-                        q => q.name.IndexOf("CarnationVariableSectionPart/Texture/") >= 0))
-                    != null)
-            {
-                //var name = ti.name.Substring(ti.name.IndexOf("CarnationVariableSectionPart/Texture/") + offset);
-                //name = name/*.Remove(name.LastIndexOf("."))*/.Replace('/', Path.DirectorySeparatorChar);
-                //TextureLib.Add(name + ti.file.fileExtension, ti.texture);
-
-                GameDatabase.Instance.databaseTexture.Remove(ti);
-            }
+            //GameDatabase.TextureInfo ti;
+            //int offset = "CarnationREDFlexiblePart/Texture/".Length;
+            //while ((ti =
+            //            GameDatabase.Instance.databaseTexture.FirstOrDefault(
+            //            q => q.name.IndexOf("CarnationREDFlexiblePart/Texture/") >= 0))
+            //        != null)
+            //{
+            //    //var name = ti.name.Substring(ti.name.IndexOf("CarnationVariableSectionPart/Texture/") + offset);
+            //    //name = name/*.Remove(name.LastIndexOf("."))*/.Replace('/', Path.DirectorySeparatorChar);
+            //    //TextureLib.Add(name + ti.file.fileExtension, ti.texture);
+            //
+            //    GameDatabase.Instance.databaseTexture.Remove(ti);
+            //}
             DefaultTexuresLoaded = true;
         }
         internal void ForceUpdateGeometry()
@@ -555,7 +561,7 @@ namespace CarnationVariableSectionPart
                 ModuleCarnationVariablePart cvsp = syc.FindModuleImplementing<ModuleCarnationVariablePart>();
                 if (cvsp == null)
                 {
-                    Debug.LogError("[CarnationREDFlexiblePart] Module not found on symmetry counter parts");
+                    Debug.LogError("[CRFP] Module not found on symmetry counter parts");
                     break;
                 }
                 cvsp.Collider.sharedMesh = null;
@@ -635,7 +641,7 @@ namespace CarnationVariableSectionPart
 
                 if (currTankDef == null)
                 {
-                    Debug.LogError($"[CarnationREDFlexiblePart] Fuel tank type {tankType} not found, cfg missing?");
+                    Debug.LogError($"[CRFP] Fuel tank type {tankType} not found, missing cfg?");
                     return;
                 }
                 RemoveAllResources();
@@ -680,7 +686,7 @@ namespace CarnationVariableSectionPart
 
                     if (currTankDef == null)
                     {
-                        Debug.LogError($"[CarnationREDFlexiblePart] Fuel tank type {tankType} not found, cfg missing?");
+                        Debug.LogError($"[CRFP] Fuel tank type {tankType} not found, cfg missing?");
                         return;
                     }
                     RemoveAllResources();
@@ -874,15 +880,12 @@ namespace CarnationVariableSectionPart
         {
             //使用旧版兼容的方法
             if (Mf == null)
-                Debug.LogError("[CarnationREDFlexiblePart] No Mesh Filter on model");
+                Debug.LogError("[CRFP] No Mesh Filter on model");
             if (HighLogic.LoadedSceneIsEditor)
             {
                 GameEvents.onEditorPartEvent.Add(OnPartEvent);
                 LoadPart();
-                if (null == partInfo)
-                {
-                    partInfo = part.partInfo;
-                }
+                partInfo = part.partInfo;
             }
             else
             {
@@ -949,7 +952,7 @@ namespace CarnationVariableSectionPart
                     CVSPUIManager.Instance.Close();
             CVSPEditorTool.OnPartDestroyed();
             //throws exception when game killed
-            //Debug.Log("[CarnationREDFlexiblePart] Part Module Destroyed!!!!!!!");
+            //Debug.Log("[CRFP] Part Module Destroyed!!!!!!!");
             GameEvents.onEditorPartEvent.Remove(OnPartEvent);
             GameEvents.onFlightReady.Remove(OnFReady);
         }
@@ -1129,7 +1132,7 @@ namespace CarnationVariableSectionPart
                             ModuleCarnationVariablePart cvsp = syc.FindModuleImplementing<ModuleCarnationVariablePart>();
                             if (cvsp == null)
                             {
-                                Debug.LogError("[CarnationREDFlexiblePart] Module not found on symmetry counter parts");
+                                Debug.LogError("[CRFP] Module not found on symmetry counter parts");
                                 continue;
                             }
                             bool symetryMirror = this.part.symMethod == SymmetryMethod.Mirror;
@@ -1263,7 +1266,7 @@ namespace CarnationVariableSectionPart
             else if (CVSPMeshBuilder.BuildingCVSPForFlight)
             {
                 CVSPMeshBuilder.BuildingCVSPForFlight = false;
-                //Debug.Log($"[CarnationREDFlexiblePart] Created {CVSPMeshBuilder.MeshesBuiltForFlight} meshes in {CVSPMeshBuilder.GetBuildTime() * .001d:F2}s");
+                //Debug.Log($"[CRFP] Created {CVSPMeshBuilder.MeshesBuiltForFlight} meshes in {CVSPMeshBuilder.GetBuildTime() * .001d:F2}s");
             }
         }
         IEnumerator CtrlVPastedUpdate()

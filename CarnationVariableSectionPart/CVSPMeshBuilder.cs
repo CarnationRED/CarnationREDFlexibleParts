@@ -216,11 +216,11 @@ namespace CarnationVariableSectionPart
         public void FinishBuilding(ModuleCarnationVariablePart variablePart)
         {
             //if (cvsp != variablePart)
-            //    Debug.LogError("[CarnationREDFlexiblePart] CVSP build process is interrupted!");
+            //    Debug.LogError("[CRFP] CVSP build process is interrupted!");
             ////else
             ////    cvsp = null;
             //if (!buildStarted)
-            //    Debug.LogError("[CarnationREDFlexiblePart] There's no build process to end!");
+            //    Debug.LogError("[CRFP] There's no build process to end!");
             buildStarted = false;
         }
         public void StartBuilding(MeshFilter mf, ModuleCarnationVariablePart variablePart)
@@ -232,7 +232,7 @@ namespace CarnationVariableSectionPart
             mesh = mf.mesh;
             if (mesh == null || !mesh.isReadable)
             {
-                Debug.Log("[CarnationREDFlexiblePart] Creating new mesh, Mesh readable:" + (mesh == null ? "Null" : (mesh.isReadable).ToString()));
+                Debug.Log("[CRFP] Creating new mesh, Mesh readable:" + (mesh == null ? "Null" : (mesh.isReadable).ToString()));
                 mf.mesh = new Mesh();
                 mesh = mf.mesh;
                 mesh.vertices = originSectionVerts;

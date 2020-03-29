@@ -388,7 +388,6 @@ namespace CarnationVariableSectionPart.UI
             movingSelectedToVisible = true;
             var v = new Vector3[4];
             ((RectTransform)fileList.transform.parent).GetWorldCorners(v);
-            Rect rect = ((RectTransform)fileList.transform).rect;
             float windowYMin = v[0].y;
             float windowYMax = v[2].y;
             var srct = fileList.GetComponentInParent<ScrollRect>();

@@ -10,7 +10,7 @@ namespace CarnationVariableSectionPart
             var mft = cvsp.part.FindModuleImplementing<ModuleFuelTanks>();
             if (mft == null)
             {
-                Debug.LogError("[CarnationREDFlexiblePart] RF's component ModuleFuelTanks is not found on the part");
+                Debug.LogError("[CRFP] RF's component ModuleFuelTanks is not found on the part");
                 return;
             }
             mft.ChangeTotalVolume(totalVolume * CVSPConfigs.RealFuelVolumeFactor);

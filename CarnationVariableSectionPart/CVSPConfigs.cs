@@ -13,6 +13,7 @@ namespace CarnationVariableSectionPart
     internal class CVSPConfigs
     {
         private static List<TankTypeDefinition> tankDefinitions;
+        private static List<TextureDefinition> textureDefinitions;
         private static Dictionary<string, float> fuelAmountPerVolume;
         private static string CRFPConfigPath;
         private static bool realFuel = false;
@@ -88,6 +89,20 @@ namespace CarnationVariableSectionPart
                 return tankDefinitions;
             }
         }
+        internal static List<TextureDefinition> TextureDefinitions
+        {
+            get
+            {
+                if (textureDefinitions == null)
+                {
+                    textureDefinitions = LoadTextureDefinitions();
+                    if (textureDefinitions == null)
+                        textureDefinitions = new List<TextureDefinition>();
+                }
+
+                return textureDefinitions;
+            }
+        }
         internal static Dictionary<string, float> FuelAmountPerVolume
         {
             get
@@ -123,8 +138,23 @@ namespace CarnationVariableSectionPart
             var tankTypeAbbrNames = new string[TankDefinitions.Count];
             for (int i = 0; i < TankDefinitions.Count; i++)
                 tankTypeAbbrNames[i] = TankDefinitions[i].abbrName;
-            CVSPResourceSwitcher.Resources = tankTypeAbbrNames;
-            CVSPResourceSwitcher.defaultResources = tankTypeAbbrNames[0];
+            CVSPUIManager.Instance.resources.Instance.RefreshItems(tankTypeAbbrNames);
+
+            l.Clear();
+            using IEnumerator<UrlDir.UrlConfig> enu3 = urlDir.GetConfigs("CRFPTextureDefinition").GetEnumerator();
+            while (enu3.MoveNext())
+            {
+                UrlDir.UrlConfig current = enu3.Current;
+                l.Add(current.config);
+            }
+            enu3.Dispose();
+            textureDefinitions = LoadTextureDefinitions(l.ToArray());
+            if (textureDefinitions != null && textureDefinitions.Count > 0)
+            {
+                TextureDefinitionSwitcher.DefaultItem = (textureDefinitions[0]);
+                CVSPUIManager.Instance.sideTextures.RefreshItems(textureDefinitions.ToArray());
+                CVSPUIManager.Instance.endsTextures.RefreshItems(textureDefinitions.ToArray());
+            }
 
             l.Clear();
             using IEnumerator<UrlDir.UrlConfig> enu1 = urlDir.GetConfigs("CRFPFuelAmountPerVolumeDefinition").GetEnumerator();
@@ -166,7 +196,7 @@ namespace CarnationVariableSectionPart
                     while ((line = sr.ReadLine()) != null)
                     {
                         l.Add(line);
-                       // l.Add(string.Empty);
+                        // l.Add(string.Empty);
                     }
 
                     sr.Dispose();
@@ -181,8 +211,7 @@ namespace CarnationVariableSectionPart
                             var tankTypeAbbrNames = new string[TankDefinitions.Count];
                             for (int i = 0; i < TankDefinitions.Count; i++)
                                 tankTypeAbbrNames[i] = TankDefinitions[i].abbrName;
-                            CVSPResourceSwitcher.Resources = tankTypeAbbrNames;
-                            CVSPResourceSwitcher.defaultResources = tankTypeAbbrNames[0];
+                            CVSPUIManager.Instance.resources.Instance.RefreshItems( tankTypeAbbrNames);
                         }
                     }
                 }
@@ -272,11 +301,11 @@ namespace CarnationVariableSectionPart
             if (cfg == null)
                 cfg = GameDatabase.Instance.GetConfigNodes("CRFPSettings")[0];
             if (cfg == null)
-                Debug.LogError("[CarnationREDFlexiblePart] Can't load CRFPSetting.cfg");
+                Debug.LogError("[CRFP] Can't load CRFPSetting.cfg");
             var keyStr = cfg.GetValue("EditorToolToggle");
             if (!Enum.TryParse<KeyCode>(keyStr, out var key))
             {
-                Debug.LogError("[CarnationREDFlexiblePart] Can't load EditorToolToggle from CRFPSetting.cfg");
+                Debug.LogError("[CRFP] Can't load EditorToolToggle from CRFPSetting.cfg");
                 return;
             }
             CVSPEditorTool.ToggleKey = key;
@@ -284,7 +313,7 @@ namespace CarnationVariableSectionPart
             var createdType = cfg.GetValue("CreatorDefaultTankType");
             if (createdType == null)
             {
-                Debug.LogError("[CarnationREDFlexiblePart] Can't load CreatorDefaultTankType from CRFPSetting.cfg");
+                Debug.LogError("[CRFP] Can't load CreatorDefaultTankType from CRFPSetting.cfg");
                 return;
             }
             CVSPEditorTool.CreatorDefaultTankType = createdType;
@@ -292,7 +321,7 @@ namespace CarnationVariableSectionPart
             var factor = cfg.GetValue("RealFuelVolumeFactor");
             if (factor == null || (!double.TryParse(factor, out RealFuelVolumeFactor)))
             {
-                Debug.LogError("[CarnationREDFlexiblePart] Can't load RealFuelVolumeFactor from CRFPSetting.cfg");
+                Debug.LogError("[CRFP] Can't load RealFuelVolumeFactor from CRFPSetting.cfg");
                 return;
             }
 
@@ -300,9 +329,89 @@ namespace CarnationVariableSectionPart
             if (fullundo == null || (!bool.TryParse(fullundo, out ModuleCarnationVariablePart.FullUndoAndRedo)))
             {
                 ModuleCarnationVariablePart.FullUndoAndRedo = true;
-                Debug.LogError("[CarnationREDFlexiblePart] Can't load FullUndoAndRedo from CRFPSetting.cfg");
+                Debug.LogError("[CRFP] Can't load FullUndoAndRedo from CRFPSetting.cfg");
                 return;
             }
+        }
+
+        private static List<TextureDefinition> LoadTextureDefinitions(ConfigNode[] cfg = null)
+        {
+            if (cfg == null)
+                cfg = GameDatabase.Instance.GetConfigNodes("CRFPTextureDefinition");
+            List<TextureDefinition> result = new List<TextureDefinition>();
+            foreach (var config in cfg)
+                foreach (var texDefNode in config.GetNodes("TextureDefinition"))
+                    if (texDefNode != null)
+                    {
+                        var texDef = new TextureDefinition();
+                        if (!texDefNode.TryGetValue("name", ref texDef.name) ||
+                            !texDefNode.TryGetValue("directory", ref texDef.directory) ||
+                            !texDefNode.TryGetValue("diffuse", ref texDef.diffuse) ||
+                            !texDefNode.TryGetValue("normals", ref texDef.normals) ||
+                            !texDefNode.TryGetValue("specular", ref texDef.specular)
+                            )
+                        {
+                            Debug.LogError($"[CRFP] Can't load TextureDefinition {texDefNode.name}");
+                            continue;
+                        }
+
+                        GameDatabase.TextureInfo tex = LoadTextureFromDatabase(texDef.directory, texDef.diffuse, asNormal: false);
+                        if (tex == null)
+                        {
+                            Debug.LogError($"[CRFP] Texture {texDef.diffuse} isn't load by the game");
+                            continue;
+                        }
+                        texDef.diff = tex.texture;
+
+                        tex = LoadTextureFromDatabase(texDef.directory, texDef.normals, asNormal: true);
+                        if (tex == null)
+                        {
+                            Debug.LogError($"[CRFP] Texture {texDef.normals} isn't load by the game");
+                            continue;
+                        }
+                        texDef.norm = tex.texture;
+
+                        tex = LoadTextureFromDatabase(texDef.directory, texDef.specular, asNormal: false);
+                        if (tex == null)
+                        {
+                            Debug.LogError($"[CRFP] Texture {texDef.specular} isn't load by the game");
+                            continue;
+                        }
+                        texDef.spec = tex.texture;
+
+                        result.Add(texDef);
+                    }
+
+            return result;
+        }
+
+        private static GameDatabase.TextureInfo LoadTextureFromDatabase(string directory, string texname, bool asNormal)
+        {
+            string path = "CarnationREDFlexiblePart/Texture/" + (directory.Length > 0 ? (directory + '/') : "") + Path.GetFileNameWithoutExtension(texname);
+            string extension = Path.GetExtension(texname).Substring(1);
+            var tex = GameDatabase.Instance.databaseTexture
+                .FirstOrDefault(q=> q.name.IndexOf(path) >= 0 && q.file.fileExtension.Equals(extension));
+            if (tex != null)
+            {
+                // Idk y but isNormalMap is always false, and I can't stand conversion for every normalmaps, so I don't convert
+                if (!tex.isNormalMap && asNormal)
+                {
+                    // Debug.LogError($"[CRFP] Please convert {texname} to DXT5_NRM");
+                    Texture2D n = null;
+                    n = tex.texture;
+                    // Idk y but isNormalMap is always false, and I won't allow conversion of every normalmaps, so I don't convert
+                    //if (tex.file.fileExtension == ".dds")
+                    //    n = CVSPUIManager.ConvertToNormalMap_DDS(tex.texture);
+                    //else if (tex.file.fileExtension == ".png")
+                    //    n = CVSPUIManager.ConvertToNormalMap_PNG(tex.texture);
+                    if (n)
+                    {
+                        tex.texture = n;
+                        tex.isNormalMap = true;
+                    }
+                }
+            }
+            return tex;
         }
 
         private static bool ParseFloat(ConfigNode cfg, string s, out float result)

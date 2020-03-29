@@ -9,17 +9,16 @@ using UnityEngine.UI;
 namespace CarnationVariableSectionPart.UI
 {
     [RequireComponent(typeof(Button))]
-    
+
     internal class CVSPFileSelector : MonoBehaviour
     {
         [SerializeField]
         private Button btn;
-        [SerializeField]
-        private Text texName;
-        [SerializeField]
-        TextureTarget target;
-        [SerializeField]
-        private Text fileName;
+        //See definition of TextureTarget
+        [SerializeField] private Text texName;
+        [SerializeField] TextureTarget target;
+        //file name, like "Texture\some folder\tex.dds"
+        [SerializeField] private Text fileName;
         public Texture2D texSelected;
         public string fileNameStr = string.Empty;
         private bool textureChanged;
@@ -27,10 +26,36 @@ namespace CarnationVariableSectionPart.UI
         internal delegate void InternalOnValueChangedHandler(Texture2D t2d, TextureTarget target, string path);
         internal event InternalOnValueChangedHandler onValueChanged;
 
+
+        public void TextureDefitionChanged(TextureTarget t, TextureDefinition def)
+        {
+            if (t == target)
+            {
+                string name = def.diffuse;
+                switch (t)
+                {
+                    case TextureTarget.EndsDiff:
+                    case TextureTarget.SideDiff:
+                        name = def.diffuse;
+                        break;
+                    case TextureTarget.EndsNorm:
+                    case TextureTarget.SideNorm:
+                        name = def.normals;
+                        break;
+                    case TextureTarget.EndsSpec:
+                    case TextureTarget.SideSpec:
+                        name = def.specular;
+                        break;
+                }
+                fileNameStr = (def.directory.Length > 0 ? (def.directory + '\\') : "") + name;
+            }
+        }
+
         void Start()
         {
             if (btn)
                 btn.onClick.AddListener(OnClick);
+            CVSPUIManager.OnTextureDefitionChanged += TextureDefitionChanged;
         }
         private void OnDestroy()
         {

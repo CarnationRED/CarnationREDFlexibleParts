@@ -5,7 +5,7 @@ namespace CarnationVariableSectionPart.UI
 {
     [RequireComponent(typeof(Button))]
     [ExecuteInEditMode]
-    
+
     internal class CVSPContentFolder : MonoBehaviour
     {
         private Button btn;
@@ -28,12 +28,13 @@ namespace CarnationVariableSectionPart.UI
         }
         private void OnDestroy()
         {
-            btn.onClick.RemoveListener(OnClick);
+            if (btn)
+                btn.onClick.RemoveListener(OnClick);
         }
         private void OnValidate()
         {
-          //  collapsed = !collapsed;
-          //  OnClick();
+            //  collapsed = !collapsed;
+            //  OnClick();
         }
         public void OnFoldAll(bool f)
         {

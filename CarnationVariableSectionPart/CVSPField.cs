@@ -16,7 +16,7 @@ namespace CarnationVariableSectionPart
             field = typeof(ModuleCarnationVariablePart).GetField(fieldName, BindingFlags.Public | BindingFlags.Instance | BindingFlags.Static | BindingFlags.NonPublic);
             if (field == null)
             {
-                Debug.LogError($"[CarnationREDFlexiblePart] Can't find field \"{fieldName}\" in {typeof(ModuleCarnationVariablePart).Name}");
+                Debug.LogError($"[CRFP] Can't find field \"{fieldName}\" in {typeof(ModuleCarnationVariablePart).Name}");
                 return;
             }
             foreach (var item in parameters)

@@ -109,7 +109,7 @@ namespace CarnationVariableSectionPart
                     _Instance = _gameObject.AddComponent<CVSPEditorTool>();
                     DontDestroyOnLoad(new GameObject().AddComponent<FPSDisplay>().gameObject);
                     DontDestroyOnLoad(_gameObject);
-                    // Debug.Log("[CarnationREDFlexiblePart] Editor Tool Loaded");
+                    // Debug.Log("[CRFP] Editor Tool Loaded");
                 }
                 return _Instance;
             }
@@ -168,7 +168,7 @@ namespace CarnationVariableSectionPart
             });
         }
 
-        //Local symetry
+        //Local symetry string "Local"
         private static string autoLOC_6001218 = Localizer.GetStringByTag("#autoLOC_6001218");
         /// <summary>
         /// 
@@ -245,11 +245,9 @@ namespace CarnationVariableSectionPart
             if (prefab == null && !assetLoading)
             {
                 assetLoading = true;
-                // Debug.Log("[CarnationREDFlexiblePart] Start loading assetbundles");
+                // Debug.Log("[CRFP] Start loading assetbundles");
                 LoadGizmoAssets();
                 LoadGUIAssets();
-                if (!EditorToolActivated)
-                    Instance.gameObject.SetActive(false);
                 assetLoading = false;
                 CreateGizmos();
             }
@@ -278,7 +276,7 @@ namespace CarnationVariableSectionPart
             var canvas = Instantiate(original);
             b.Unload(false);
 
-            CVSPUIManager.onValueChanged += CVSPUIManager_OnValueChanged;
+            CVSPUIManager.onValueChanged += UI_TextureSelectedOrParamModified;
             CVSPUIManager.getLocalizedString += (string tag) =>
             {
                 if (Localizer.TryGetStringByTag(tag, out string s))
@@ -292,7 +290,7 @@ namespace CarnationVariableSectionPart
             };
             CVSPUIManager.getEditorCamera += () => EditorCamera;
             CVSPUIManager.createCVSP += SpawnCVSP;
-            CVSPUIManager.postGameScreenMsg += (string s) => ScreenMessages.PostScreenMessage(s, 2f, ScreenMessageStyle.UPPER_RIGHT, Color.magenta);
+            CVSPUIManager.postGameScreenMsg += (string s) => ScreenMessages.PostScreenMessage(s, 3f, ScreenMessageStyle.UPPER_RIGHT, Color.magenta);
             CVSPUIManager.lockGameUI += (bool loc) =>
             {
                 if (loc)
@@ -310,10 +308,10 @@ namespace CarnationVariableSectionPart
                     GameUILocked = false;
                 }
             };
-            CVSPUIManager.determineWhichToModify += () => DetermineWhichToModify();
+            CVSPUIManager.determineWhichToModify += DetermineWhichToModify;
             CVSPUIManager.getGameLanguage += () => GameSettings.LANGUAGE;
 
-            CVSPResourceSwitcher.onResourceSwithed += (string s) =>
+            CVSPUIManager.Instance.resources.Instance.OnItemSwitched += (string s) =>
             {
                 if (!uiEditingPart) return;
                 if (uiEditingPart)
@@ -332,14 +330,84 @@ namespace CarnationVariableSectionPart
             var tankTypeAbbrNames = new string[CVSPConfigs.TankDefinitions.Count];
             for (int i = 0; i < CVSPConfigs.TankDefinitions.Count; i++)
                 tankTypeAbbrNames[i] = CVSPConfigs.TankDefinitions[i].abbrName;
-            CVSPResourceSwitcher.Resources = tankTypeAbbrNames;
-            CVSPResourceSwitcher.onGetRealFuelInstalled += () => CVSPConfigs.RealFuel;
+            CVSPUIManager.Instance.resources.Instance.RefreshItems(tankTypeAbbrNames);
+            CVSPResourceSwitcher.OnGetRealFuelInstalled += () => CVSPConfigs.RealFuel;
 
-            CVSPCreatePartPanel.onDeactivateGizmos += () => Deactivate();
+            TextureDefinitionSwitcher.DefaultItem = CVSPConfigs.TextureDefinitions.First();
+            yield return new WaitUntil(() => CVSPUIManager.Instance && CVSPUIManager.Instance.endsTextures && CVSPUIManager.Instance.sideTextures);
+            CVSPUIManager.Instance.endsTextures.RefreshItems(CVSPConfigs.TextureDefinitions.ToArray());
+            CVSPUIManager.Instance.sideTextures.RefreshItems(CVSPConfigs.TextureDefinitions.ToArray());
+            CVSPUIManager.Instance.endsTextures.OnItemSwitched += EndsTexturesSwitched;
+            CVSPUIManager.Instance.sideTextures.OnItemSwitched += SideTexturesSwitched;
 
-            // Debug.Log("[CarnationREDFlexiblePart] GUI loaded");
+            CVSPCreatePartPanel.onDeactivateGizmos += Deactivate;
+
+            if (!EditorToolActivated)
+                Instance.gameObject.SetActive(false);
+            // Debug.Log("[CRFP] GUI loaded");
             yield return new WaitForSecondsRealtime(1.0f);
         }
+
+        private void SideTexturesSwitched(TextureDefinition selected)
+        {
+            if (uiEditingPart)
+            {
+                //    if (!selected.diff) throw new Exception();
+                string path;
+                string dir = selected.directory.Replace('/', '\\');
+                path = dir + '\\' + selected.diffuse;
+                uiEditingPart.SetTexture(selected.diff, TextureTarget.SideDiff, path);
+                path = dir + '\\' + selected.normals;
+                uiEditingPart.SetTexture(selected.norm, TextureTarget.SideNorm, path);
+                path = dir + '\\' + selected.specular;
+                uiEditingPart.SetTexture(selected.spec, TextureTarget.SideSpec, path);
+                uiEditingPart.UpdateMaterials();
+                foreach (var p in uiEditingPart.part.symmetryCounterparts)
+                {
+                    var m = p.FindModuleImplementing<ModuleCarnationVariablePart>();
+                    if (m)
+                    {
+                        m.CopyMaterialFrom(uiEditingPart);
+                        m.UpdateMaterials();
+                    }
+                }
+                CVSPUIManager.Instance.OnTextureDefinitionChanged(TextureTarget.SideDiff, selected);
+                CVSPUIManager.Instance.OnTextureDefinitionChanged(TextureTarget.SideNorm, selected);
+                CVSPUIManager.Instance.OnTextureDefinitionChanged(TextureTarget.SideSpec, selected);
+            }
+        }
+
+        private void EndsTexturesSwitched(TextureDefinition selected)
+        {
+            if (uiEditingPart)
+            {
+                //  if (selected.name == null || selected.name == string.Empty) throw new Exception();
+                //
+                string path;
+                string dir = selected.directory.Replace('/', '\\');
+                dir = (dir.Length > 0 ? (dir + '\\') : "");
+                path = dir + selected.diffuse;
+                uiEditingPart.SetTexture(selected.diff, TextureTarget.EndsDiff, path);
+                path = dir + selected.normals;
+                uiEditingPart.SetTexture(selected.norm, TextureTarget.EndsNorm, path);
+                path = dir + selected.specular;
+                uiEditingPart.SetTexture(selected.spec, TextureTarget.EndsSpec, path);
+                uiEditingPart.UpdateMaterials();
+                foreach (var p in uiEditingPart.part.symmetryCounterparts)
+                {
+                    var m = p.FindModuleImplementing<ModuleCarnationVariablePart>();
+                    if (m)
+                    {
+                        m.CopyMaterialFrom(uiEditingPart);
+                        m.UpdateMaterials();
+                    }
+                }
+                CVSPUIManager.Instance.OnTextureDefinitionChanged(TextureTarget.EndsDiff, selected);
+                CVSPUIManager.Instance.OnTextureDefinitionChanged(TextureTarget.EndsNorm, selected);
+                CVSPUIManager.Instance.OnTextureDefinitionChanged(TextureTarget.EndsSpec, selected);
+            }
+        }
+
         bool DetermineWhichToModify()
         {
             if (partModule)
@@ -360,8 +428,9 @@ namespace CarnationVariableSectionPart
             return true;
         }
         int calledtame = 0;
-        private void CVSPUIManager_OnValueChanged(Texture2D t2d, TextureTarget target, string path)
+        private void UI_TextureSelectedOrParamModified(Texture2D t2d, TextureTarget target, string path)
         {
+            //uiEditingPart is determined in CVSPUIManager's Update
             if (!uiEditingPart) return;
             calledtame++;
             //Debug.Log("Called time" + calledtame + " part y:" + uiEditingPart.part.transform.position.y); ;
@@ -481,8 +550,10 @@ namespace CarnationVariableSectionPart
             ui.OptimizeEnds = cvsp.optimizeEnds;
 
             string str = cvsp.tankType;
-            if (CVSPResourceSwitcher.Instance) CVSPResourceSwitcher.Instance.SwitchTo(str);
-            else CVSPResourceSwitcher.defaultResources = str;
+            if (CVSPUIManager.Instance.resources.Instance) CVSPUIManager.Instance.resources.Instance.SwitchTo(str);
+            else CVSPUIManager.Instance.resources.Instance.DefaultItem = str;
+            if (CVSPUIManager.Instance.endsTextures) CVSPUIManager.Instance.endsTextures.SwitchTo(default);
+            if (CVSPUIManager.Instance.sideTextures) CVSPUIManager.Instance.sideTextures.SwitchTo(default);
             var r = new float[8];
             for (int i = 0; i < 8; i++) r[i] = cvsp.GetCornerRadius(i);
             ui.Radius = r;
@@ -517,14 +588,14 @@ namespace CarnationVariableSectionPart
             WWW www = new WWW(path + FileName_Handles);
 
             if (www.error != null)
-                Debug.LogError("[CarnationREDFlexiblePart] Loading... " + www.error);
+                Debug.LogError("[CRFP] Loading... " + www.error);
             if (bumpedSpecShader == null)
             {
                 bumpedSpecShader = Shader.Find("KSP/Bumped Specular (Mapped)");
                 if (bumpedSpecShader != null)
-                    ;//    Debug.Log("[CarnationREDFlexiblePart] Bumped Specular shader loaded from game memory");
+                    ;//    Debug.Log("[CRFP] Bumped Specular shader loaded from game memory");
                 else
-                    Debug.Log("[CarnationREDFlexiblePart] Bumped Specular(Mapped) shader not found!!");
+                    Debug.Log("[CRFP] Bumped Specular(Mapped) shader not found!!");
             }
             prefab = www.assetBundle.LoadAsset("handles") as GameObject;
             if (prefab != null)
@@ -664,7 +735,7 @@ namespace CarnationVariableSectionPart
                 cvsp.StartCoroutine(SetupUI(cvsp));
             }
         }
-         static IEnumerator SetupUI(ModuleCarnationVariablePart cvsp)
+        static IEnumerator SetupUI(ModuleCarnationVariablePart cvsp)
         {
             yield return new WaitUntil(() => CVSPUIManager.Initialized);
             yield return new WaitForEndOfFrame();
@@ -674,6 +745,8 @@ namespace CarnationVariableSectionPart
             yield return new WaitForEndOfFrame();
             yield return new WaitForEndOfFrame();
             Instance.CopyParamsToUI(cvsp);
+            CVSPUIManager.Instance.SetTexFileNames(ModuleCarnationVariablePart.SplitStringByComma(cvsp.endTexNames, 3), ModuleCarnationVariablePart.SplitStringByComma(cvsp.sideTexNames, 3));
+
         }
 
 
@@ -1014,7 +1087,7 @@ namespace CarnationVariableSectionPart
             {
                 if ((section0 == null || section1 == null))
                 {
-                    // Debug.Log("[CarnationREDFlexiblePart] Added Editor Gizmos");
+                    // Debug.Log("[CRFP] Added Editor Gizmos");
                     section0 = Instantiate<GameObject>(prefab);
                     section0.name = "section0";
                     section0.transform.SetParent(_gameObject.transform, false);
@@ -1030,7 +1103,7 @@ namespace CarnationVariableSectionPart
             {
                 if ((partSection0 == null || partSection1 == null))
                 {
-                    //  Debug.Log("[CarnationREDFlexiblePart] Added Editor Gizmos");
+                    //  Debug.Log("[CRFP] Added Editor Gizmos");
                     partSection0 = partModule.Section0Transform.gameObject;
                     partSection1 = partModule.Section1Transform.gameObject;
                     while (0 < section0.transform.childCount)

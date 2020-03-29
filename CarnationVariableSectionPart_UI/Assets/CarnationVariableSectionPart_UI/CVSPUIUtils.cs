@@ -13,6 +13,24 @@ namespace CarnationVariableSectionPart.UI
     public class CVSPUIUtils
     {
         #region UI Utils
+        /// <summary>
+        /// works with Camera set to Screen Space Overlay
+        /// </summary>
+        /// <param name="t"></param>
+        /// <returns></returns>
+        public static Rect RectTransformToRect(RectTransform t, bool getARectAboveTransform = true)
+        {
+            var rc = new Vector3[4];
+            t.GetWorldCorners(rc);
+            Vector3 size = rc[3] - rc[1];
+            size.x *= -1;
+            var r = new Rect(rc[3], size);
+            r.x += r.width;
+            r.y = Screen.height - r.y + size.y * (getARectAboveTransform ? 2 : 1);
+            r.height *= -1;
+            r.width *= -1;
+            return r;
+        }
         public static IEnumerator UIMovementCoroutine(GameObject objToMove, float time, Vector3 destination)
         {
             if (time <= 0)
@@ -208,7 +226,7 @@ namespace CarnationVariableSectionPart.UI
 
         #region Job Execution helpers
         static float closestVertDistanceCriteria;
-       public static int closestVertID;
+        public static int closestVertID;
         /// <summary>
         /// 找到点到射线的距离最近的点，到摄像机的距离也会影响
         /// </summary>

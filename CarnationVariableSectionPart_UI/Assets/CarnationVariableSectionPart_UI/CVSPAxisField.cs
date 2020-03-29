@@ -89,7 +89,7 @@ namespace CarnationVariableSectionPart.UI
             yield return new WaitUntil(() =>
             {
                 foreach (var i in shiftSyncAxis)
-                    if (!i.i) return false;
+                    if (!i) return false;
                 return true;
             });
             foreach (var a in shiftSyncAxis)
@@ -100,7 +100,7 @@ namespace CarnationVariableSectionPart.UI
             yield return new WaitUntil(() =>
             {
                 foreach (var i in controlSyncAxis)
-                    if (!i.i) return false;
+                    if (!i) return false;
                 return true;
             });
             foreach (var a in controlSyncAxis)
@@ -112,7 +112,7 @@ namespace CarnationVariableSectionPart.UI
             yield return new WaitUntil(() =>
             {
                 foreach (var i in altSyncAxis)
-                    if (!i.i) return false;
+                    if (!i) return false;
                 return true;
             });
             foreach (var a in altSyncAxis)
@@ -123,7 +123,7 @@ namespace CarnationVariableSectionPart.UI
             yield return new WaitUntil(() =>
             {
                 foreach (var i in counterRGBAxis)
-                    if (!i.i) return false;
+                    if (!i) return false;
                 return true;
             });
             foreach (var a in counterRGBAxis)

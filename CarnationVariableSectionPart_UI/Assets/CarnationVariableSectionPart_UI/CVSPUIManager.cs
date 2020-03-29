@@ -227,6 +227,10 @@ namespace CarnationVariableSectionPart.UI
         public static event    GetGameLanguageHandler getGameLanguage;
         public delegate string GetGameLanguageHandler();
 
+
+        public static event TextureDefitionChangedHandler OnTextureDefitionChanged;
+        public delegate void TextureDefitionChangedHandler(TextureTarget t, TextureDefinition def);
+
         [SerializeField]
         RectTransform mainPanel;
         [SerializeField]
@@ -271,6 +275,12 @@ namespace CarnationVariableSectionPart.UI
         private Button create;
         [SerializeField]
         private CVSPCreatePartPanel createPartPanel;
+        [SerializeField]
+        public TextureDefinitionSwitcher endsTextures;
+        [SerializeField]
+        public TextureDefinitionSwitcher sideTextures;
+        [SerializeField]
+        public CVSPResourceSwitcher resources;
 
         private List<Slider> radiusSliders;
         private float[] radius;
@@ -290,6 +300,8 @@ namespace CarnationVariableSectionPart.UI
         private bool radiusSyncEditing;
         public static float paramTransferedTime;
         public static bool HoveringOnRadius;
+
+
 
         public bool PickingVertex => Instance.createPartPanel.pickingVertex;
         public bool MouseOverUI { get => isActiveAndEnabled ? mouseOverUI : GetMouseOverUI(); private set => mouseOverUI = value; }
@@ -465,7 +477,7 @@ namespace CarnationVariableSectionPart.UI
                 string s = LocalizeString(txt.text, ref c);
                 txt.text = s;
             }
-            Debug.Log($"[CarnationREDFlexiblePart] {c} UI elements localized");
+            Debug.Log($"[CRFP] {c} UI elements localized");
         }
 
         private static string LocalizeString(string s, ref int count)
@@ -484,7 +496,7 @@ namespace CarnationVariableSectionPart.UI
                 if (b) lcl += " ";
                 if (lcl.Equals(toLcl))
                 {
-                    Debug.LogError($"[CarnationREDFlexiblePart] Error Localizing \"{toLcl}\", missing corresponding tag in cfg?");
+                    Debug.LogError($"[CRFP] Error Localizing \"{toLcl}\", missing corresponding tag in cfg?");
                     break;
                 }
                 s = s.Remove(LOCStart, LOCEnd - LOCStart + 1);
@@ -527,6 +539,11 @@ namespace CarnationVariableSectionPart.UI
             int i = 0;
             if (postGameScreenMsg != null)
                 postGameScreenMsg.Invoke(LocalizeString(s, ref i));
+        }
+
+        public void OnTextureDefinitionChanged(TextureTarget t,TextureDefinition d)
+        {
+            if (null != OnTextureDefitionChanged) OnTextureDefitionChanged.Invoke(t, d);
         }
 
         public void SetTexFileNames(string[] ends, string[] side)
@@ -895,13 +912,13 @@ namespace CarnationVariableSectionPart.UI
             Texture2D t2d = w.texture;
             if (w.error != null)
             {
-                Debug.LogError("[CarnationREDFlexiblePart] Can't load Texture: " + w.error);
+                Debug.LogError("[CRFP] Can't load Texture: " + w.error);
                 w.Dispose();
                 return null;
             }
             if (t2d == null)
             {
-                Debug.LogError("[CarnationREDFlexiblePart] Can't load Texture");
+                Debug.LogError("[CRFP] Can't load Texture");
                 w.Dispose();
                 return null;
             }

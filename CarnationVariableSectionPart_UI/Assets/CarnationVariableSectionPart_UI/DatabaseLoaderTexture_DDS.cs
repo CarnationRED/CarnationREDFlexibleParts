@@ -51,7 +51,7 @@ namespace CarnationVariableSectionPart.UI
             if (!File.Exists(path))
             {
                 error = "File does not exist";
-                Debug.LogError("[CarnationREDFlexiblePart] missing file:" + Path.GetFileName(path));
+                Debug.LogError("[CRFP] missing file:" + Path.GetFileName(path));
                 return null;
             }
             using (var reader = new BinaryReader(File.Open(path, FileMode.Open, FileAccess.Read)))

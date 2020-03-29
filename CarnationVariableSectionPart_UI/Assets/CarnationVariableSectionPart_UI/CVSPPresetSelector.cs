@@ -25,7 +25,7 @@ namespace CarnationVariableSectionPart.UI
         private bool bWrnInvalidName;
         private static string wrnFileExists;
         private static string wrnInvalidName;
-        private static GUIStyle warning;
+        public static GUIStyle centeredGUIStyle;
         private void Start()
         {
             CVSPPresetManager.onPresetSelected += PresetSelected;
@@ -96,27 +96,18 @@ namespace CarnationVariableSectionPart.UI
         }
         private void OnGUI()
         {
-            if (!input || !(bWrnFileExists || bWrnInvalidName)) return;
-            if (null == warning)
+            if (null == centeredGUIStyle)
             {
-                warning = new GUIStyle("box");
-                warning.normal.textColor = Color.red;
-                warning.alignment = TextAnchor.MiddleCenter;
-                warning.fontSize = 16;
+                centeredGUIStyle = new GUIStyle("box");
+                centeredGUIStyle.normal.textColor = Color.red;
+                centeredGUIStyle.alignment = TextAnchor.MiddleCenter;
+                centeredGUIStyle.fontSize = 16;
             }
+            if (!input || !(bWrnFileExists || bWrnInvalidName)) return;
 
-            var rc = new Vector3[4];
-            ((RectTransform)input.transform).GetWorldCorners(rc);
-            Vector3 size = rc[3] - rc[1];
-            size.x *= -1;
-            var r = new Rect(rc[3], size);
-            r.x += r.width;
-            r.y = Screen.height - r.y + size.y * 2;
-            r.height *= -1;
-            r.width *= -1;
 
-            warning.normal.textColor = bWrnFileExists ? Color.yellow : Color.red;
-            GUI.Box(r, bWrnFileExists ? wrnFileExists : wrnInvalidName, warning);
+            centeredGUIStyle.normal.textColor = bWrnFileExists ? Color.yellow : Color.red;
+            GUI.Box(CVSPUIUtils.RectTransformToRect(input.transform as RectTransform), bWrnFileExists ? wrnFileExists : wrnInvalidName, centeredGUIStyle);
         }
     }
 }
