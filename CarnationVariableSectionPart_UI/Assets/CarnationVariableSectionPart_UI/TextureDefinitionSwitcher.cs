@@ -17,6 +17,7 @@ namespace CarnationVariableSectionPart.UI
         public new static TextureDefinition[] Items;
         public new static TextureDefinition DefaultItem;
         private bool showLabel;
+        private Coroutine findHovering;
         private TextureDefinition labelInfo;
         private Toggle labelItem;
         private float labelFadeTime;
@@ -95,7 +96,7 @@ namespace CarnationVariableSectionPart.UI
 
         IEnumerator FindHovering()
         {
-            while (showLabel)
+            while (showLabel&&MouseOver)
             {
                 using var enu = ItemToggles.GetEnumerator();
                 while (enu.MoveNext())
@@ -154,13 +155,15 @@ namespace CarnationVariableSectionPart.UI
             labelFadeTime = 1.5f;
             if (labelFadingCoroutine != null) StopCoroutine(labelFadingCoroutine);
             labelFadingCoroutine = StartCoroutine(LabelFading());
+            if (findHovering != null) StopCoroutine(findHovering);
         }
 
         public void OnPointerEnter(PointerEventData eventData)
         {
             MouseOver = this;
             showLabel = true;
-            StartCoroutine(FindHovering());
+            if (findHovering != null) StopCoroutine(findHovering);
+            findHovering = StartCoroutine(FindHovering());
 
         }
     }

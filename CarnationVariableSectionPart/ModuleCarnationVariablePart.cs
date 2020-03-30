@@ -939,12 +939,25 @@ namespace CarnationVariableSectionPart
             {
                 if (Section0) Destroy(Section0);
                 if (Section1) Destroy(Section1);
+
+                if (CVSPConfigs.FAR) StartCoroutine(DoFAR_UpdateCollider());
             }
 
             //不清楚有没有用
             part.attachNodes[0].secondaryAxis = Vector3.right;
             part.attachNodes[1].secondaryAxis = Vector3.forward;
         }
+
+        IEnumerator DoFAR_UpdateCollider()
+        {
+            while (true)
+            {
+                if (FARAPI.FAR_UpdateCollider(this))
+                    break;
+                yield return new WaitForSecondsRealtime(0.1f);
+            }
+        }
+
         private void OnDestroy()
         {
             if (CVSPUIManager.Instance)
@@ -1173,7 +1186,7 @@ namespace CarnationVariableSectionPart
                         anyKeyUp = false;
                         holdingKey = true;
                         if (Input.GetKeyDown(CVSPEditorTool.ToggleKey))
-                            CVSPEditorTool.Activate(CVSPEditorTool.RaycastCVSP());
+                            CVSPEditorTool.Activate(CVSPEditorTool.RaycastCVSP(this));
                         else if (Input.GetKeyDown(KeyCode.C) && !Input.GetKey(KeyCode.LeftControl))
                         {
                             if (CVSPEditorTool.Instance.GameUILocked)
@@ -1253,7 +1266,7 @@ namespace CarnationVariableSectionPart
                         anyKeyUp = true;
                         holdingKey = false;
                         if (Input.GetMouseButtonUp(1))
-                            CVSPEditorTool.ActivateWithoutGizmos(CVSPEditorTool.RaycastCVSP());
+                            CVSPEditorTool.ActivateWithoutGizmos(CVSPEditorTool.RaycastCVSP(this));
                     }
                 }
                 if (modifiedDuringHoldingKey && anyKeyUp)
@@ -1524,6 +1537,7 @@ namespace CarnationVariableSectionPart
         {
             if (MeshRender != null)
             {
+                MeshRender.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.On;
                 Color color = new Color(colorTint.x, colorTint.y, colorTint.z);
                 if (!plainColorTexture)
                     plainColorTexture = new Texture2D(2, 2);

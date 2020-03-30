@@ -494,6 +494,7 @@ namespace CarnationVariableSectionPart.UI
         {
             gameObject.SetActive(true);
             CVSPUIManager.Instance.Close();
+            CVSPUIManager.HoveringOnRadius = false;
         }
         internal void Close()
         {

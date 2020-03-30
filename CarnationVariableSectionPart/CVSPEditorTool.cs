@@ -107,7 +107,7 @@ namespace CarnationVariableSectionPart
                     _gameObject = new GameObject("CVSPPersist");
                     _gameObject.SetActive(false);
                     _Instance = _gameObject.AddComponent<CVSPEditorTool>();
-                    DontDestroyOnLoad(new GameObject().AddComponent<FPSDisplay>().gameObject);
+                    //  DontDestroyOnLoad(new GameObject().AddComponent<FPSDisplay>().gameObject);
                     DontDestroyOnLoad(_gameObject);
                     // Debug.Log("[CRFP] Editor Tool Loaded");
                 }
@@ -311,7 +311,8 @@ namespace CarnationVariableSectionPart
             CVSPUIManager.determineWhichToModify += DetermineWhichToModify;
             CVSPUIManager.getGameLanguage += () => GameSettings.LANGUAGE;
 
-            CVSPUIManager.Instance.resources.Instance.OnItemSwitched += (string s) =>
+            if (!CVSPConfigs.RealFuel)
+                CVSPUIManager.Instance.resources.Instance.OnItemSwitched += (string s) =>
             {
                 if (!uiEditingPart) return;
                 if (uiEditingPart)
@@ -330,7 +331,8 @@ namespace CarnationVariableSectionPart
             var tankTypeAbbrNames = new string[CVSPConfigs.TankDefinitions.Count];
             for (int i = 0; i < CVSPConfigs.TankDefinitions.Count; i++)
                 tankTypeAbbrNames[i] = CVSPConfigs.TankDefinitions[i].abbrName;
-            CVSPUIManager.Instance.resources.Instance.RefreshItems(tankTypeAbbrNames);
+            if (!CVSPConfigs.RealFuel)
+                CVSPUIManager.Instance.resources.Instance.RefreshItems(tankTypeAbbrNames);
             CVSPResourceSwitcher.OnGetRealFuelInstalled += () => CVSPConfigs.RealFuel;
 
             TextureDefinitionSwitcher.DefaultItem = CVSPConfigs.TextureDefinitions.First();
@@ -550,8 +552,10 @@ namespace CarnationVariableSectionPart
             ui.OptimizeEnds = cvsp.optimizeEnds;
 
             string str = cvsp.tankType;
-            if (CVSPUIManager.Instance.resources.Instance) CVSPUIManager.Instance.resources.Instance.SwitchTo(str);
-            else CVSPUIManager.Instance.resources.Instance.DefaultItem = str;
+
+            if (!CVSPConfigs.RealFuel)
+                if (CVSPUIManager.Instance.resources.Instance) CVSPUIManager.Instance.resources.Instance.SwitchTo(str);
+                else CVSPUIManager.Instance.resources.Instance.DefaultItem = str;
             if (CVSPUIManager.Instance.endsTextures) CVSPUIManager.Instance.endsTextures.SwitchTo(default);
             if (CVSPUIManager.Instance.sideTextures) CVSPUIManager.Instance.sideTextures.SwitchTo(default);
             var r = new float[8];
@@ -705,10 +709,23 @@ namespace CarnationVariableSectionPart
                 StopAllCoroutines();
             }
         }
-        internal static ModuleCarnationVariablePart RaycastCVSP()
+        internal static ModuleCarnationVariablePart RaycastCVSP(ModuleCarnationVariablePart c)
         {
             if (Time.time - LastCastTime > Time.deltaTime)
             {
+                //var list = new List<ModuleCarnationVariablePart>();
+                //foreach (var item in c.part.ship.Parts)
+                //    if (item.name.StartsWith("CarnationREDFlexible"))
+                //    {
+                //        var cvsp = item.FindModuleImplementing<ModuleCarnationVariablePart>();
+                //        if (cvsp != null)
+                //        {
+                //            cvsp.gameObject.layer = ModuleCarnationVariablePart.CVSPEditorLayer;
+                //            list.Add(cvsp);
+                //        }
+                //    }
+
+
                 Ray r;
                 r = EditorCamera.ScreenPointToRay(Input.mousePosition);
                 RaycastHit hit;
@@ -721,6 +738,10 @@ namespace CarnationVariableSectionPart
                     return cvsp;
                 }
                 LastCastTime = Time.time;
+
+                //if (list != null)
+                //    foreach (var i in list)
+                //        if (i) i.gameObject.layer = default;
             }
             return null;
         }

@@ -63,27 +63,30 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Assets\CapsuleRay.cs" />
-    <Compile Include="Assets\CVSPAxisField.cs" />
-    <Compile Include="Assets\CVSPContentFolder.cs" />
-    <Compile Include="Assets\CVSPCreatePartPanel.cs" />
-    <Compile Include="Assets\CVSPDragWindow.cs" />
-    <Compile Include="Assets\CVSPFileManager.cs" />
-    <Compile Include="Assets\CVSPFileSelector.cs" />
-    <Compile Include="Assets\CVSPMenuContent.cs" />
-    <Compile Include="Assets\CVSPMinimizeBtn.cs" />
-    <Compile Include="Assets\CVSPPanelResizer.cs" />
-    <Compile Include="Assets\CVSPPartInfo.cs" />
-    <Compile Include="Assets\CVSPPresetItem.cs" />
-    <Compile Include="Assets\CVSPPresetManager.cs" />
-    <Compile Include="Assets\CVSPPresetSelector.cs" />
-    <Compile Include="Assets\CVSPResourceSwitcher.cs" />
-    <Compile Include="Assets\CVSPUIManager.cs" />
-    <Compile Include="Assets\CVSPUIUtils.cs" />
-    <Compile Include="Assets\CVSPWidthFitter.cs" />
-    <Compile Include="Assets\DatabaseLoaderTexture_DDS.cs" />
-    <Compile Include="Assets\EdgeVisualizer.cs" />
-    <Compile Include="Assets\SectionInfo.cs" />
+    <Compile Include="Assets\CarnationVariableSectionPart_UI\CapsuleRay.cs" />
+    <Compile Include="Assets\CarnationVariableSectionPart_UI\CVSPAxisField.cs" />
+    <Compile Include="Assets\CarnationVariableSectionPart_UI\CVSPContentFolder.cs" />
+    <Compile Include="Assets\CarnationVariableSectionPart_UI\CVSPCreatePartPanel.cs" />
+    <Compile Include="Assets\CarnationVariableSectionPart_UI\CVSPDragWindow.cs" />
+    <Compile Include="Assets\CarnationVariableSectionPart_UI\CVSPFileManager.cs" />
+    <Compile Include="Assets\CarnationVariableSectionPart_UI\CVSPFileSelector.cs" />
+    <Compile Include="Assets\CarnationVariableSectionPart_UI\CVSPMenuContent.cs" />
+    <Compile Include="Assets\CarnationVariableSectionPart_UI\CVSPMinimizeBtn.cs" />
+    <Compile Include="Assets\CarnationVariableSectionPart_UI\CVSPPanelResizer.cs" />
+    <Compile Include="Assets\CarnationVariableSectionPart_UI\CVSPPartInfo.cs" />
+    <Compile Include="Assets\CarnationVariableSectionPart_UI\CVSPPresetItem.cs" />
+    <Compile Include="Assets\CarnationVariableSectionPart_UI\CVSPPresetManager.cs" />
+    <Compile Include="Assets\CarnationVariableSectionPart_UI\CVSPPresetSelector.cs" />
+    <Compile Include="Assets\CarnationVariableSectionPart_UI\CVSPResourceSwitcher.cs" />
+    <Compile Include="Assets\CarnationVariableSectionPart_UI\CVSPUIManager.cs" />
+    <Compile Include="Assets\CarnationVariableSectionPart_UI\CVSPUIUtils.cs" />
+    <Compile Include="Assets\CarnationVariableSectionPart_UI\CVSPWidthFitter.cs" />
+    <Compile Include="Assets\CarnationVariableSectionPart_UI\DatabaseLoaderTexture_DDS.cs" />
+    <Compile Include="Assets\CarnationVariableSectionPart_UI\EdgeVisualizer.cs" />
+    <Compile Include="Assets\CarnationVariableSectionPart_UI\SectionInfo.cs" />
+    <Compile Include="Assets\CarnationVariableSectionPart_UI\Switcher.cs" />
+    <Compile Include="Assets\CarnationVariableSectionPart_UI\TextureDefinition.cs" />
+    <Compile Include="Assets\CarnationVariableSectionPart_UI\TextureDefinitionSwitcher.cs" />
     <Reference Include="Unity.Timeline.Editor">
       <HintPath>C:/Users/8500G5M/KSPPlugins/KSP181/CarnationVariableSectionPart_UI/Library/ScriptAssemblies/Unity.Timeline.Editor.dll</HintPath>
     </Reference>

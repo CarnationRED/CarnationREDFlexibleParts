@@ -262,7 +262,7 @@ namespace CarnationVariableSectionPart.UI
 
         private void OnGUI()
         {
-            GUI.Label(new Rect(200, 200, 200, 20), "" + CVSPUIUtils.closestVertID);
+          // GUI.Label(new Rect(200, 200, 200, 20), "" + CVSPUIUtils.closestVertID);
             //GUI.Label(new Rect(Screen.width/2, 80, 200, 25), "SnapState: " + snapState);
             //GUI.Label(new Rect(150, 70, 400, 25), $"pos:{transform.position},fwd:{transform.forward}");
         }

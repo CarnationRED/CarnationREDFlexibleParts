@@ -872,6 +872,7 @@ namespace CarnationVariableSectionPart.UI
         {
             if (!gameObject.activeSelf)
                 gameObject.SetActive(true);
+            SaveConfig();
         }
         public void Close()
         {
