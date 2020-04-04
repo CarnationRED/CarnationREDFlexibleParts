@@ -4,6 +4,7 @@
 ## Get latest from https://github.com/github/gitignore/blob/master/VisualStudio.gitignore
 
 /CarnationVariableSectionPart_UI_KSP Ready/Assets/DIDI/
+/Models
 
 # User-specific files
 *.rsuser

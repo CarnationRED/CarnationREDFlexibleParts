@@ -1,4 +1,23 @@
-﻿using System;
+﻿/*
+ * Note:
+ * The comments of this file are translated to English by google translate 
+ * and human translation. 
+ * Thus, translation of a word might be inconsistent sometimes, this 
+ * situation has been avoided as much as possible. Here is a table of 
+ * frequent words and what they really mean in case you found the comments 
+ * are confusing:
+ * 
+ * Word     ->  What they really mean
+ * ==============================================
+ * point    ->  vertex (for a mesh)
+ * corner   ->  vertex (for a geometry object)
+ * face     ->  section
+ * fillet   ->  rounded corner
+ * 
+ * The original comment was written by CarnationRED in Simplified Chinese.
+ */
+
+using System;
 using UnityEngine;
 namespace CarnationVariableSectionPart
 {
@@ -7,16 +26,20 @@ namespace CarnationVariableSectionPart
         public class CVSPBodyEdge
         {
             /// <summary>
-            /// Id:0~3，对应四棱柱侧面4个棱及其邻面
+            /// Id: 0~3, Corresponds to the four side edges and
+            /// their adjacent faces of a quadrangular prism
             /// </summary>
             public int Id { get; }
             private bool reTriangulate = false;
             /// <summary>
-            /// R0对应0号截面上的圆角，R1是1号截面上的
+            /// R0 corresponds to the rounded corners on section 0, and R1 
+            /// for section 1
             /// </summary>
             private float R0, R1;
             /// <summary>
-            ///额外点的个数：如果有角点，或者有一个棱要生成，则需增加顶点
+            /// Number of extra vertices: If there are corner 
+            /// vertices, or there is an edge to be generated, then it is 
+            /// needed to add vertices
             /// </summary>
             private int additionVert;
             public int[] triangles;
@@ -26,40 +49,60 @@ namespace CarnationVariableSectionPart
             public Vector3[] tangents;
             private CVSPBodyEdge child0, child1;
             /// <summary>
-            /// 0:不细分，1:细分一次，2:细分2次，4:细分3次...
+            /// 0: not subdivide,
+            /// 1: subdivide once
+            /// 2: subdivide 2 times
+            /// 4: subdivide 3 times
+            /// ...
             /// </summary>
             int subdivideLevel = 0;
-            //TO-DO: 添加缩放、旋转的支持，因为这个类涉及法线计算，所以必须在这里实现缩放、扭转等等
+            
+            // TODO: Add support for scaling and rotation. Because this 
+            // class involves normal calculations, so it is necessary to
+            // implement scaling, twisting, etc. here.
 
             public CVSPBodyEdge(int id)
             {
                 Id = id;
             }
             /// <summary>
-            /// 使用0和1两组顶点索引，编织一个网格带。网格带的中部可以由r0和r1控制生成一个棱
+            /// Using two sets of vertex indices 0 and 1, weaving a meshband. 
+            /// The middle of the meshband can be controlled by r0 and r1 to 
+            /// generate an edge
             /// </summary>
-            /// <param name="verts">顶点坐标数组</param>
-            /// <param name="vertID0">0组的顶点索引。算法按照棱在正中间编写，两边的三角形数相同，所以一侧点的数目必须为奇数</param>
-            /// <param name="vertID1">1组的顶点索引。长度完全等于前一个索引数组</param>
-            /// <param name="r0">0组的角部圆角。</param>
-            /// <param name="r1">1组的角部圆角。</param>
-            /// <param name="uvStartU0">0组上的顶点起始UV坐标x。</param>
-            /// <param name="uvStartU1">1组上的顶点起始UV坐标x</param>
-            /// <param name="uv0">输出0组上的顶点中止UV坐标x。</param>
-            /// <param name="uv1">输出1组上的顶点中止UV坐标x。</param>
-            /// <param name="param">提供一些UV参数。</param>
-            /// <param name="subdivideLevel0">0组一侧的细分等级，2的幂0</param>
-            /// <param name="subdivideLevel1">1组一侧的细分等级，2的幂0</param>
-            /// <param name="uvStartV0">0组一侧贴图坐标V值</param>
-            /// <param name="uvStartV1">1组一侧贴图坐标V值</param>
+            /// <param name="verts">Vertex coordinate array</param>
+            /// <param name="vertID0">Vertex index for group 0. The algorithm
+            /// is written according to the edge in the middle. The number of 
+            /// triangles on both sides is the same, so the number of points 
+            /// on one side must be odd.</param>
+            /// <param name="vertID1">Vertex index of 1 group. The length is 
+            /// exactly equal to the previous index array</param>
+            /// <param name="r0">Rounded corner of group 0</param>
+            /// <param name="r1">Rounded corner of group 1</param>
+            /// <param name="uvStartU0">U-coordinate of UV of the starting 
+            /// vertex on group 0</param>
+            /// <param name="uvStartU1">U-coordinate of UV of the starting 
+            /// vertex on group 1</param>
+            /// <param name="uv0">Output U-coordinate of UV of the ending 
+            /// vertex on group 0</param>
+            /// <param name="uv1">Output U-coordinate of UV of the ending 
+            /// vertex on group 1</param>
+            /// <param name="param">Some UV parameters</param>
+            /// <param name="subdivideLevel0">Subdivision level on side 0</param>
+            /// <param name="subdivideLevel1">Subdivision level on side 1</param>
+            /// <param name="uvStartV0">V-coordinate of UV of the starting 
+            /// vertex on group 0</param>
+            /// <param name="uvStartV1">V-coordinate of UV of the starting 
+            /// vertex on group 1</param>
             public void MakeStrip(Vector3[] verts, int[] vertID0, int[] vertID1, float r0, float r1, float uvStartU0, float uvStartU1, out float uv0, out float uv1, ModuleCarnationVariablePart param, int subdivideLevel0, int subdivideLevel1, float uvStartV0, float uvStartV1, Quaternion qTiltRotInverse0, Quaternion qTiltRotInverse1)
             {
                 this.subdivideLevel = Mathf.Max(subdivideLevel0, subdivideLevel1);
-                //只有当细分等级为0，才去真正创建网格，否则细分给子网格去做
+                // Create the grid only when the subdivision level is 0, 
+                // otherwise the subdivision is done to the sub-mesh
                 if (subdivideLevel == 0)
                 {
                     float uvCopy0 = uvStartU0, uvCopy1 = uvStartU1;
-                    //对尺寸有0时，特殊处理
+                    // Special case when there is a 0 in the parameters
                     if (IsZero(param.Section0Height) && Id % 2 == 0)
                         uvStartU0 += param.SideScaleU;
                     if (IsZero(param.Section0Width) && Id % 2 == 1)
@@ -70,7 +113,7 @@ namespace CarnationVariableSectionPart
                         uvStartU1 += param.SideScaleU;
                     R0 = r0;
                     R1 = r1;
-                    //是否重新划分三角形，详见后文
+                    //Whether to re-divide triangles, see below
                     reTriangulate = R0 > R1;
                     additionVert = 0;
                     if (IsZero(R0)) additionVert++;
@@ -82,14 +125,21 @@ namespace CarnationVariableSectionPart
 
                     if (vertID0.Length != vertID1.Length)
                         Debug.LogError("[BodyEdgeBild]ERROR: vertID0.Length != vertID1.Length");
-                    for (int i = 0; i / 2 < vertID0.Length - 1; i += 2)//遍历vertID0.Length-1个四边形
+                    for (int i = 0; i / 2 < vertID0.Length - 1; i += 2)// Traverse vertID0.Length-1 quads
                     {
-                        //先分配顶点，一个quad4个，但是因为quad间共享一条边，只在遍历第一个quad时分配4个顶点，往后的情况只分配俩
+                        // First assign vertices, 4 for one quad, but because
+                        // the quads share an edge, only 4 vertices are 
+                        // assigned for the first quad, and 2 for others.
                         for (int j = i == 0 ? 0 : 2; j < 4; j++)
                         {
-                            //第一个quad为例：0、2号顶点在0号截面上，1、3号在1号截面上。0、2号顶点对应vertID0的第0、1号ID，1、3号顶点对应vertID1的第0、1号ID。
+                            // Take the first quad as an example: vertices 0 
+                            // and 2 are on section 0, and 1, 3 are on section 1. 
+                            // Vertices 0 and 2 correspond to IDs 0 and 1 of 
+                            // vertID0, and vertex 1 and 3 correspond to IDs 0 
+                            // and 1 of vertID1.
                             vertices[i + j] = verts[j % 2 == 1 ? vertID1[(i + j) / 2] : vertID0[(i + j) / 2]];
-                            //分配起始uv，仅在第一个quad执行
+                            // Assign starting uv, only executed for the first 
+                            // quad
                             if (j < 2)
                             {
                                 uv[j].y = j == 1 ? uvStartV1 : uvStartV0;
@@ -97,39 +147,45 @@ namespace CarnationVariableSectionPart
                                 uv[j].x *= 0.5f;
                             }
                         }
-                        //边长，用于UV计算
+                        // Side length for UV calculation
                         float length0;
                         float length1;
                         if (param.RealWorldMapping)
                         {
-                            //使用实际边长计算UV，真实世界贴图坐标
+                            // Calculate UV, real world map coordinates using 
+                            // actual edge length
                             length0 = Vector3.Distance(vertices[i], vertices[i + 2]);
                             length1 = Vector3.Distance(vertices[i + 1], vertices[i + 3]);
                         }
                         else
                         {
-                            //使用矫正的边长计算UV
+                            // Calculate UV with corrected side length
                             length0 = ScaledDistance(vertices[i], vertices[i + 2], param, 0, qTiltRotInverse0, qTiltRotInverse1);
                             length1 = ScaledDistance(vertices[i + 1], vertices[i + 3], param, 1, qTiltRotInverse0, qTiltRotInverse1);
                         }
                         if (param.CornerUVCorrection)
                             if (i > 0 && i / 2 < vertID0.Length - 2)
                             {
-                                //矫正圆角处的UV，达到圆角大小改变，圆角处UV增量也不变的效果
+                                // Correct the UV at the rounded corners to achieve 
+                                // the effect that the size of the rounded corners
+                                // changes and the UV increment at the rounded 
+                                // corners does not change
                                 length0 *= PerimeterSharp / PerimeterRound;
                                 length1 *= PerimeterSharp / PerimeterRound;
                             }
-                        //UV增加一个边长
+                        // Adds an edge length to UV
                         uvStartU0 += length0 * param.SideScaleU;
                         uvStartU1 += length1 * param.SideScaleU;
                         for (int j = 2; j < 4; j++)
                         {
-                            //分配UV
+                            //Assign UV
                             uv[i + j].y = 1 == j % 2 ? uvStartV1 : uvStartV0;
                             uv[i + j].x = j == 3 ? uvStartU1 : uvStartU0;
                             uv[i + j].x *= 0.5f;
                         }
-                        //四边形使用两种不同的三角划分，改善外观（大部分时候改善效果有限）
+                        // The quadrangle uses two different triangles to improve 
+                        // the appearance (although not much improvement for most 
+                        // of the time)
                         int im3 = i * 3;
                         if ((!reTriangulate && i < vertID0.Length - 1) || (reTriangulate && i >= vertID0.Length - 1))
                         {
@@ -157,22 +213,25 @@ namespace CarnationVariableSectionPart
                     }
                     else
                     {
-                        //直接+2，不用计算边长累加的结果，避免截面尺寸为零时出错
+                        // add 2 directly to avoid errors when the section size is 
+                        // zero
                         uv0 = uvCopy0 + 2f * param.SideScaleU;
                         uv1 = uvCopy1 + 2f * param.SideScaleU;
                     }
-                    //已经录入的顶点个数
+                    //Number of vertices already entered
                     int index = vertID0.Length + vertID1.Length - 1;
-                    //下面对有锐棱出现的情况进行处理
+                    //Processing sharp edges
                     if (IsZero(R0))
                     {
-                        //R0==0的话，一定reTriangulate为false
-                        //角点对应编号：vertID0.Length - 1，影响位于中部的1个三角形：第vertID0.Length - 1
+                        // If R0 == 0, reTriangulate must be false
+                        // The corresponding index of the corner point:
+                        // vertID0.Length - 1，
+                        // which affects a triangle vertID0.Length - 1 in the middle
                         index++;
-                        //新增（分割）点和uv到数组结尾
+                        // Add (split) vertices and uv to the end of the array
                         vertices[index] = VectorCopy(vertices[vertID0.Length - 1]);
                         uv[index] = VectorCopy(uv[vertID0.Length - 1]);
-                        //最后一个三角形
+                        // Last triangle
                         var triID = vertID0.Length - 1;
                         triangles[triID * 3] = index;
                         triangles[triID * 3 + 3] = index;
@@ -181,10 +240,13 @@ namespace CarnationVariableSectionPart
                     {
                         if (IsZero(R0))
                         {
-                            //R0==0的话，一定reTriangulate为false
-                            //角点对应编号：vertID0.Length，影响位于中间的1个三角形：第vertID0.Length - 1
+                            // If R0 == 0, reTriangulate must be false
+                            // The corresponding index of the corner point:
+                            // vertID0.Length - 1，
+                            // which affects a triangle vertID0.Length - 1 in the 
+                            // middle
                             index++;
-                            //新增（分割）点和uv到数组结尾
+                            // Add (split) vertices and uv to the end of the array
                             vertices[index] = VectorCopy(vertices[vertID0.Length]);
                             uv[index] = VectorCopy(uv[vertID0.Length]);
                             var triID = vertID0.Length - 1;
@@ -207,7 +269,7 @@ namespace CarnationVariableSectionPart
                         verts0[vertID1[i]] = mid;
                         verts1[vertID0[i]] = mid;
                     }
-                    //计算分开处的一些参数
+                    // Calculate parameters for the separation
                     var uvStartMid = (uvStartU0 + uvStartU1) / 2f;
                     var rMid = (r0 + r1) / 2f;
                     var sLvlMid = Mathf.Min(subdivideLevel0, subdivideLevel1) / 2;
@@ -217,24 +279,67 @@ namespace CarnationVariableSectionPart
                 }
             }
             /// <summary>
-            /// 合并所有子网格的mesh，相邻两个子网格的接缝焊接起来
-            /// 针对两个细分等级为0的子网格合并的情况，additionVerts有四种组合：2和2（直棱）、1和0（下部棱角，上部圆角）、0和1（下部圆角，上部棱角）、0和0（上下都圆角，没有新增点）
-            /// 针对各种组合情况分析焊接顶点的算法如下
-            /// 一、0和0、或者2和2时：子网格内0组的顶点索引都是偶数，1组的都是奇数。焊接顶点的方法就是把子网格child1的奇数号顶点替代到child0原来奇数号顶点的位置，child0原来的奇数号顶点移到数组末尾
-            /// 二、1和0时：子网格child0新增的一个顶点在它的0组一侧，不影响合并。焊接顶点的方法同样是用子网格child1的奇数号顶点替代到child0原来奇数号顶点的位置，child0原来的奇数号顶点移到数组末尾
-            /// 三、0和1时：子网格child1新增的一个顶点在它的1组一侧，为偶数号点。焊接顶点的方法则就是用子网格child1的奇数号顶点和新增的那个偶数号顶点替代到子网格child0的奇数号顶点位置，。。。
-            /// 删除被代替的顶点，注意数组长度的计算
+            /// Merge the meshes of all subgrids and weld the seams of two adjacent 
+            /// subgrids together
+            /// For the case where two sub-grids with a subdivision level of 0 are 
+            /// merged, there are four combinations of additionVerts: 
+            /// 2 and 2 (hard corners), 
+            /// 1 and 0 (lower hard corners, upper rounded corners), 
+            /// 0 and 1 (lower rounded corners, Upper hard corners), 
+            /// 0 and 0 (rounded up and down, no new points added)
+            /// 
+            /// The algorithm for analyzing the welding vertices for various 
+            /// combinations is as follows:
+            /// 1. When 0 and 0, or 2 and 2: The vertex indexes of group 0 in the 
+            /// sub-grid are all even numbers, and those of group 1 are all odd 
+            /// numbers. The method of welding vertices is to replace the odd-numbered 
+            /// vertices of child1 with the original odd-numbered vertices of child0, 
+            /// and move the original odd-numbered vertices of child0 to the end of 
+            /// the array.
+            /// 2. When 1 and 0: A new vertex of the child mesh child0 is on the side 
+            /// of its 0 group, and does not affect the merge. The method of welding 
+            /// vertices is also to replace the odd-numbered vertices of child0 with 
+            /// the odd-numbered vertices of child1 and move the original odd-numbered 
+            /// vertices of child0 to the end of the array
+            /// 3. When 0 and 1: When a new vertex of child mesh child1 is on one side 
+            /// of it, it is an even-numbered point. The method of welding vertices is 
+            /// to replace the odd-numbered vertices of the sub-mesh child1 and the 
+            /// newly added even-numbered vertices to the odd-numbered vertex positions
+            /// of the sub-mesh child0...
+            /// 
+            /// Original text:
+            /// 一、0和0、或者2和2时：子网格内0组的顶点索引都是偶数，1组的都是奇数。焊接顶点
+            /// 的方法就是把子网格child1的奇数号顶点替代到child0原来奇数号顶点的位置，child0
+            /// 原来的奇数号顶点移到数组末尾
+            /// 二、1和0时：子网格child0新增的一个顶点在它的0组一侧，不影响合并。焊接顶点的方
+            /// 法同样是用子网格child1的奇数号顶点替代到child0原来奇数号顶点的位置，child0原
+            /// 来的奇数号顶点移到数组末尾
+            /// 三、0和1时：子网格child1新增的一个顶点在它的1组一侧，为偶数号点。焊接顶点的方
+            /// 法则就是用子网格child1的奇数号顶点和新增的那个偶数号顶点替代到子网格child0的
+            /// 奇数号顶点位置，。。。
+            ///
+            /// Delete the replaced vertices, pay attention to the calculation of the 
+            /// array length
             /// </summary>
             internal void MergeSubMesh()
             {
                 if (subdivideLevel == 0) return;
                 if (subdivideLevel >= 2)
-                {//细分等级大于等于2，说明child也需要细分
+                {
+                    // Subdivision level is greater than or equal to 2, indicating that
+                    // the child also needs to be subdivided
                     child0.MergeSubMesh();
                     child1.MergeSubMesh();
                 }
-                #region 老的不焊接的算法，不焊接的话，边界的法线会不一致。函数注释的部分是打算写的焊接算法，逻辑太繁杂，我放弃了。想写的话，准备写一个直接生成细分面的算法，不用搞什么child和焊接
-                //顶点参数合并
+                #region old non-welding algorithm
+                /*
+                * The old non-welding algorithm, the boundary normal will be inconsistent 
+                * if not welding. The part of the function comment is the welding algorithm 
+                * that I intend to write. The logic is too complicated, and I give up. 
+                * Going to write an algorithm that directly generates subdivisions, without 
+                * any child or welding.
+                */
+                //merge vertex parameter
                 int l0 = child0.vertices.Length;
                 int l1 = child1.vertices.Length;
                 vertices = new Vector3[l0 + l1];
@@ -249,7 +354,7 @@ namespace CarnationVariableSectionPart
                 child1.tangents.CopyTo(tangents, l0);
                 child0.uv.CopyTo(uv, 0);
                 child1.uv.CopyTo(uv, l0);
-                //三角形索引合并
+                //merge triangle index 
                 l0 = child0.triangles.Length;
                 triangles = new int[l0 + child1.triangles.Length];
                 child0.triangles.CopyTo(triangles, 0);
@@ -261,12 +366,12 @@ namespace CarnationVariableSectionPart
                 #endregion
             }
             /// <summary>
-            /// 只考虑了x、z坐标
+            /// Only the x and z coordinates are considered
             /// </summary>
             /// <param name="v1"></param>
             /// <param name="v2"></param>
             /// <param name="param"></param>
-            /// <param name="section">截面编号，0~1</param>
+            /// <param name="section">Section number, 0 ~ 1</param>
             /// <returns></returns>
             private float ScaledDistance(Vector3 v1, Vector3 v2, ModuleCarnationVariablePart param, int section, Quaternion qTiltRotInverse0, Quaternion qTiltRotInverse1)
             {
@@ -281,18 +386,19 @@ namespace CarnationVariableSectionPart
             }
 
             /// <summary>
-            /// 规范法线，保证过渡区域外观
+            /// Standardize normals to ensure the appearance of transition areas
             /// </summary>
-            /// <param name="n1">截面0上开头点的法线</param>
-            /// <param name="n2">截面0上结束点的法线</param>
-            /// <param name="n3">截面1上开头点的法线</param>
-            /// <param name="n4">截面1上结束点的法线</param>
+            /// <param name="n1">Normal at the starting point on section 0</param>
+            /// <param name="n2">Normal at the starting point on section 1</param>
+            /// <param name="n3">Normal at the starting point on section 2</param>
+            /// <param name="n4">Normal at the starting point on section 3</param>
             internal void SetEndsNorms(Vector3 n1, Vector3 n2, Vector3 n3, Vector3 n4, float r0, float r1, ModuleCarnationVariablePart param)
             {
-                //只有当细分等级为0，才去真正修改法线，否则细分给子网格去做
+                // Create the grid only when the subdivision level is 0, 
+                // otherwise the subdivision is done to the sub-mesh
                 if (subdivideLevel == 0)
                 {
-                    //截面0一侧的首尾4个点
+                    // 4 vertices at the beginning and end of section 0
                     if (IsZero(1f - r0))
                     {
                         normals[0] = n1;
@@ -340,9 +446,9 @@ namespace CarnationVariableSectionPart
                 }
             }
             /// <summary>
-            /// 根据法线矫正切线
+            /// Correct tangent according to normal
             /// </summary>
-            /// <param name="id">顶点编号</param>
+            /// <param name="id">Vertex number</param>
             private void CorrectTangent(int id)
             {
                 var axis = Vector3.Cross(tangents[id], normals[id]);
@@ -351,7 +457,7 @@ namespace CarnationVariableSectionPart
             }
 
             /// <summary>
-            /// 将result绕Y轴旋转到和target最近的位置
+            /// Rotate the result around the Y axis to the position closest to the target
             /// </summary>
             /// <param name="target"></param>
             /// <param name="result"></param>

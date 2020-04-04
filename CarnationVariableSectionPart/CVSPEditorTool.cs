@@ -1,4 +1,23 @@
-﻿using UnityEngine;
+﻿/*
+ * Note:
+ * The comments of this file are translated to English by google translate 
+ * and human translation. 
+ * Thus, translation of a word might be inconsistent sometimes, this 
+ * situation has been avoided as much as possible. Here is a table of 
+ * frequent words and what they really mean in case you found the comments 
+ * are confusing:
+ * 
+ * Word     ->  What they really mean
+ * ==============================================
+ * point    ->  vertex (for a mesh)
+ * corner   ->  vertex (for a geometry object)
+ * face     ->  section
+ * fillet   ->  rounded corner
+ * 
+ * The original comment was written by CarnationRED in Simplified Chinese.
+ */
+
+using UnityEngine;
 using System.IO;
 using System;
 using CarnationVariableSectionPart.UI;
@@ -299,7 +318,7 @@ namespace CarnationVariableSectionPart
                 {
                     if (!GameUILocked)
                     {
-                        //参考了B9PW里面的用法，起源ferram4
+                        // Referenced the usage in B9PW, by ferram4
                         EditorLogic.fetch.Lock(false, false, false, "CVSPEditorTool");
                         GameUILocked = true;
                     }
@@ -374,7 +393,7 @@ namespace CarnationVariableSectionPart
             var oldShine   /**/   = uiEditingPart.Shininess;
             var oldTint    /**/   = uiEditingPart.colorTint;
             if (t2d)
-            {//选择了贴图
+            {//Texture selected
                 uiEditingPart.SetTexture(t2d, target, path);
                 uiEditingPart.UpdateMaterials();
                 foreach (var p in uiEditingPart.part.symmetryCounterparts)
@@ -388,7 +407,7 @@ namespace CarnationVariableSectionPart
                 }
             }
             else
-            {//参数调整
+            {//Parameter adjustment
                 var ui = CVSPUIManager.Instance;
                 uiEditingPart.Section0Width      /**/   = ui.Section0Width;
                 uiEditingPart.Section0Height     /**/   = ui.Section0Height;
@@ -643,8 +662,8 @@ namespace CarnationVariableSectionPart
                 RaycastHit hit;
                 if (Physics.Raycast(r, out hit, 100f, 1 << ModuleCarnationVariablePart.CVSPEditorLayer))
                 {
-                    //part是模型的父级(model)的父级
-                    //不能用hit.transform，不准确
+                    //part is the parent of model's parent(model)
+                    //Cannot use hit.transform, it is inaccurate
                     var go = hit.collider.transform.parent.parent;
                     var cvsp = go.GetComponent<ModuleCarnationVariablePart>();
                     return cvsp;
@@ -687,14 +706,14 @@ namespace CarnationVariableSectionPart
                     if (cvsp != Instance.partModule)
                     {
                         PreserveParameters = Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.RightControl);
-                        //按下左Ctrl则复制参数
+                        //Press left Ctrl to copy parameters
                         if (PreserveParameters)
                         {
                             oldTwist = cvsp.Twist;
                             oldTilts = new Vector2(cvsp.Tilt0, cvsp.Tilt1);
                             CopyParamsTo(cvsp);
                         }
-                        //参数复制后，再启动编辑
+                        //start editing after the parameters are copied
                         Instance.Activate_(cvsp);
                     }
                 }
@@ -957,7 +976,8 @@ namespace CarnationVariableSectionPart
                     }
                     else
                     {
-                        // if (!mouseOverUI)//没有拖动变形手柄，且按下左键，则隐藏变形手柄，隐藏编辑工具
+                        // if (!mouseOverUI)// if no deformation handle, and pressing the left button,
+                                            //then hide the deformation handle and hide the editing tools
                         Deactivate();
                     }
                 }
