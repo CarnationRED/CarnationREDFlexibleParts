@@ -293,6 +293,9 @@
     <Reference Include="mscorlib">
       <HintPath>D:/Unity/Editor/Data/MonoBleedingEdge/lib/mono/4.7.1-api/mscorlib.dll</HintPath>
     </Reference>
+    <Reference Include="RealFuels">
+      <HintPath>References\RealFuels.dll</HintPath>
+    </Reference>
     <Reference Include="System">
       <HintPath>D:/Unity/Editor/Data/MonoBleedingEdge/lib/mono/4.7.1-api/System.dll</HintPath>
     </Reference>

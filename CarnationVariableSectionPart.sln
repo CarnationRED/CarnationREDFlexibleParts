@@ -4,8 +4,11 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 VisualStudioVersion = 16.0.29806.167
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CarnationVariableSectionPart", "CarnationVariableSectionPart.csproj", "{B3FCABB3-00B1-7ECD-D048-B39F6A629ED1}"
+	ProjectSection(ProjectDependencies) = postProject
+		{BE8D1A8D-A0A1-9E5D-750B-A758CD8992C8} = {BE8D1A8D-A0A1-9E5D-750B-A758CD8992C8}
+	EndProjectSection
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "C", "..\CarnationVariableSectionPart_UI\C.csproj", "{BE8D1A8D-A0A1-9E5D-750B-A758CD8992C8}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "C", "CarnationVariableSectionPart_UI\C.csproj", "{BE8D1A8D-A0A1-9E5D-750B-A758CD8992C8}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
