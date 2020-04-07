@@ -12,9 +12,7 @@ using RealFuels.Tanks;
 using UnityEngine.UI;
 using KSP.UI;
 using System.Collections;
-/*using ferram4;
-using FerramAerospaceResearch.FARGUI.FAREditorGUI;
-using FerramAerospaceResearch.FARPartGeometry;*/
+using System.Text;
 
 namespace CarnationVariableSectionPart
 {
@@ -46,10 +44,9 @@ namespace CarnationVariableSectionPart
     {
         internal static AvailablePart partInfo;
         internal static bool PartDragging;
-        internal static GameObject clipboardGO;
         internal static object[] clipboard;
 
-        #region Serializable KSP Fields
+        #region KSP Fields
         [CVSPField(fieldName: "Section0Radius")]
         [KSPField(isPersistant = true)]
         public Vector4 Section0Radius = Vector4.one;
@@ -57,21 +54,19 @@ namespace CarnationVariableSectionPart
         [KSPField(isPersistant = true)]
         [CVSPField(fieldName: "Section1Radius")]
         public Vector4 Section1Radius = Vector4.one;
+        #region Setter Getter
         public float GetCornerRadius(int id)
         {
             var sec = id > 3 ? Section1Radius : Section0Radius;
             id %= 4;
-            switch (id)
+            return id switch
             {
-                case 0:
-                    return sec.x;
-                case 1:
-                    return sec.y;
-                case 2:
-                    return sec.z;
-                default:
-                    return sec.w;
-            }
+                0 => sec.x,
+                1 => sec.y,
+                2 => sec.z,
+                _ => sec.w,
+            };
+            ;
         }
         public void SetCornerRadius(int id, float value)
         {
@@ -97,6 +92,37 @@ namespace CarnationVariableSectionPart
             if (b0) Section1Radius = sec;
             else Section0Radius = sec;
         }
+
+        #endregion
+
+        [KSPField(isPersistant = true)]
+        [CVSPField(fieldName: "SectionCorners")]
+        public string SectionCorners = "fillet, fillet, fillet, fillet, fillet, fillet, fillet, fillet";
+        #region Setter Getter
+        private string SectionCorners_old = string.Empty;
+        private SectionCorner[] cornerTypes = new SectionCorner[8] { new SectionCorner(), new SectionCorner(), new SectionCorner(), new SectionCorner(), new SectionCorner(), new SectionCorner(), new SectionCorner(), new SectionCorner() };
+        internal SectionCorner[] GetCornerTypes()
+        {
+            if (!SectionCorners_old.Equals(SectionCorners))
+            {
+                var val = SplitStringByComma(SectionCorners, 8);
+                for (int i = 0; i < 8; i++)
+                    cornerTypes[i] = CVSPConfigs.SectionCornerDefinitions.FirstOrDefault(q => q.name.Equals(val[i]));
+            }
+            return cornerTypes;
+        }
+
+        internal void SetCornerTypes(SectionCorner value, int id)
+        {
+            cornerTypes[id] = value;
+            var val = SplitStringByComma(SectionCorners, 8);
+            SectionCorners_old = SectionCorners;
+            SectionCorners = string.Empty;
+            for (int i = 0; i < val.Length; i++)
+                SectionCorners += (i == id ? value.name : val[i]) + ", ";
+            SectionCorners = SectionCorners.Remove(SectionCorners.Length - 2);
+        }
+        #endregion
 
         [KSPField(isPersistant = true)]
         [CVSPField(fieldName: "SectionSizes")]
@@ -134,21 +160,32 @@ namespace CarnationVariableSectionPart
         [CVSPField(fieldName: "colorTint")]
         public Vector3 colorTint = Vector3.one * .85f;
 
+        /// <summary>
+        /// CornerUVCorrection | RealWorldMapping | EndsTiledMapping | UseEndsTexture | UseSideTexture
+        /// </summary>
         [KSPField(isPersistant = true)]
         [CVSPField(fieldName: "mappingOptions")]
         public string mappingOptions = "10011";
-
-        [KSPField(isPersistant = true)]
-        public bool physicless = false;
-        [KSPField(isPersistant = true)]
-        public bool optimizeEnds = true;
-
         bool GetMappingOption(int id) => mappingOptions[id] == '1';
         void SetMappingOption(int id, bool b)
         {
             string c = b ? "1" : "0";
             mappingOptions = mappingOptions.Remove(id, 1).Insert(id, c);
         }
+
+        /// <summary>
+        /// physicless | optimizeEnds | linkSection0 | linkSection1
+        /// </summary>
+        [KSPField(isPersistant = true)]
+        [CVSPField(fieldName: "miscOptions")]
+        public string miscOptions = "0000";
+        bool GetMiscOption(int id) => miscOptions[id] == '1';
+        void SetMiscOption(int id, bool b)
+        {
+            string c = b ? "1" : "0";
+            miscOptions = miscOptions.Remove(id, 1).Insert(id, c);
+        }
+
 
         [KSPField(isPersistant = true)]
         [CVSPField(fieldName: "uvOffsets")]
@@ -162,7 +199,6 @@ namespace CarnationVariableSectionPart
         [CVSPField(fieldName: "isSectionVisible")]
         public Vector2 isSectionVisible = new Vector2(1f, 1);
 
-
         [KSPField(isPersistant = true)]
         [CVSPField(fieldName: "tankType")]
         public string tankType = "LFO";
@@ -170,41 +206,48 @@ namespace CarnationVariableSectionPart
         public string oldTankType = "";
         #endregion
         #region Shape Properties
-        public readonly static float MaxSize = 20f;
         public float Section0Width
         {
             get => SectionSizes.x;
-            set => SectionSizes.x = Mathf.Clamp(value, 0, MaxSize);
+            set
+            {
+                SectionSizes.x = Mathf.Clamp(value, (SectionSizes.z + SectionSizes.w) == 0 ? 0.0125f : 0, CVSPConfigs.MaxSize);
+                if (SectionSizes.x + SectionSizes.y == 0)
+                {
+                    Section0Radius = Vector4.one;
+                    CVSPEditorTool.Instance.FixZeroSizeBug();
+                }
+            }
         }
         public float Section0Height
         {
             get => SectionSizes.y;
-            set => SectionSizes.y = Mathf.Clamp(value, 0, MaxSize);
+            set => SectionSizes.y = Mathf.Clamp(value, (SectionSizes.z + SectionSizes.w) == 0 ? 0.0125f : 0, CVSPConfigs.MaxSize);
         }
         public float Section1Width
         {
             get => SectionSizes.z;
-            set => SectionSizes.z = Mathf.Clamp(value, 0, MaxSize);
+            set => SectionSizes.z = Mathf.Clamp(value, (SectionSizes.x + SectionSizes.y) == 0 ? 0.0125f : 0, CVSPConfigs.MaxSize);
         }
         public float Section1Height
         {
             get => SectionSizes.w;
-            set => SectionSizes.w = Mathf.Clamp(value, 0, MaxSize);
+            set => SectionSizes.w = Mathf.Clamp(value, (SectionSizes.x + SectionSizes.y) == 0 ? 0.0125f : 0, CVSPConfigs.MaxSize);
         }
         public float Length
         {
             get => offsets.y;
-            set => offsets.y = Mathf.Clamp(value, 0.001f, MaxSize);
+            set => offsets.y = Mathf.Clamp(value, 0.001f, CVSPConfigs.MaxLength);
         }
         public float Run
         {
             get => offsets.z;
-            set => offsets.z = Mathf.Min(value, MaxSize);
+            set => offsets.z = Mathf.Min(value, CVSPConfigs.MaxSize);
         }
         public float Raise
         {
             get => offsets.w;
-            set => offsets.w = Mathf.Min(value, MaxSize);
+            set => offsets.w = Mathf.Min(value, CVSPConfigs.MaxSize);
         }
         public float Twist
         {
@@ -222,12 +265,119 @@ namespace CarnationVariableSectionPart
             set => tilts.y = Mathf.Clamp(value, -45f, 45f);
         }
         #endregion
+        #region Link Section Shape
+
+        public bool LinkSection0 { get => GetMiscOption(2); set => SetMiscOption(2, value); }
+        public bool LinkSection1 { get => GetMiscOption(3); set => SetMiscOption(3, value); }
+        public ModuleCarnationVariablePart LinkedPartAt(int id)
+        {
+            if (!(id == 0 ? LinkSection0 : LinkSection1)) return null;
+            var part = id == 0 ? node0.attachedPart : node1.attachedPart;
+            if (!part || !part.name.StartsWith("Carnation")) return null;
+            return part.GetComponent<ModuleCarnationVariablePart>();
+        }
+        internal void LinkSections(int preservePartLinkedAt = -1)
+        {
+            preserveTimer = preservePartLinkedAt >= 0 ? 1 : -1;
+            var linked0 = LinkedPartAt(0);
+            var linked1 = LinkedPartAt(1);
+            if (linked0)
+            {
+                if (preservePartLinkedAt == 0)
+                    CopySectionShape(from: linked0, to: this, fromSection: node0.FindOpposingNode() == linked0.node0 ? 0 : 1, toSection: 0);
+                else
+                {
+                    CopySectionShape(from: this, to: linked0, fromSection: 0, toSection: node0.FindOpposingNode() == linked0.node0 ? 0 : 1);
+                    linked0.linkEditing = true;
+                    linked0.Update();
+                    // linked0.ForceUpdate = true;
+                }
+            }
+            if (linked1)
+            {
+                if (preservePartLinkedAt == 1)
+                    CopySectionShape(from: linked1, to: this, fromSection: node1.FindOpposingNode() == linked1.node0 ? 0 : 1, toSection: 1);
+                else
+                {
+                    CopySectionShape(from: this, to: linked1, fromSection: 1, toSection: node1.FindOpposingNode() == linked1.node0 ? 0 : 1);
+                    linked1.linkEditing = true;
+                    linked1.Update();
+                    //linked1.ForceUpdate = true;
+                }
+            }
+        }
+        internal static int LinkedSectionID(ModuleCarnationVariablePart host, ModuleCarnationVariablePart other)
+        {
+            if (!host || !other) return -1;
+            var linked0 = host.LinkedPartAt(0);
+            var linked1 = host.LinkedPartAt(1);
+            if (/*linked0 && */other == linked0) return 0;
+            if (/*linked1 && */other == linked1) return 1;
+            return -1;
+        }
+        static void CopySectionShape(ModuleCarnationVariablePart from, ModuleCarnationVariablePart to, int fromSection, int toSection)
+        {
+            bool from0 = fromSection == 0;
+            if (toSection == 0)
+            {
+                to.SectionSizes.Set(
+                    from0 ? from.SectionSizes.x : from.SectionSizes.z,
+                    from0 ? from.SectionSizes.y : from.SectionSizes.w,
+                    to.SectionSizes.z,
+                    to.SectionSizes.w);
+                to.Section0Radius = from0 ? from.Section0Radius : from.Section1Radius;
+            }
+            else
+            {
+                to.SectionSizes.Set(
+                    to.SectionSizes.x,
+                    to.SectionSizes.y,
+                    from0 ? from.SectionSizes.x : from.SectionSizes.z,
+                    from0 ? from.SectionSizes.y : from.SectionSizes.w);
+                to.Section1Radius = from0 ? from.Section0Radius : from.Section1Radius;
+            }
+
+            var typesTo = SplitStringByComma(to.SectionCorners, 8);
+            var typesFrom = SplitStringByComma(from.SectionCorners, 8);
+
+            to.SectionCorners = string.Empty;
+            if (toSection == 0)
+            {
+                if (!from0)
+                {
+                    var temp = typesTo;
+                    typesTo = typesFrom;
+                    typesFrom = temp;
+                }
+                for (int i = 0; i < 8; i++)
+                    if (i < 4) to.SectionCorners += typesFrom[i] + ", ";
+                    else to.SectionCorners += typesTo[i] + ", ";
+                to.SectionCorners = to.SectionCorners.Remove(to.SectionCorners.Length - 2);
+            }
+            else
+            {
+                if (from0)
+                {
+                    var temp = typesTo;
+                    typesTo = typesFrom;
+                    typesFrom = temp;
+                }
+                for (int i = 0; i < 8; i++)
+                    if (i > 3) to.SectionCorners += typesFrom[i] + ", ";
+                    else to.SectionCorners += typesTo[i] + ", ";
+
+                to.SectionCorners = to.SectionCorners.Remove(to.SectionCorners.Length - 2);
+            }
+        }
+        #endregion
         #region Appearance Properties
         public bool CornerUVCorrection { get => GetMappingOption(0); set => SetMappingOption(0, value); }
         public bool RealWorldMapping { get => GetMappingOption(1); set => SetMappingOption(1, value); }
         public bool EndsTiledMapping { get => GetMappingOption(2); set => SetMappingOption(2, value); }
         public bool UseEndsTexture { get => GetMappingOption(3); set => SetMappingOption(3, value); }
         public bool UseSideTexture { get => GetMappingOption(4); set => SetMappingOption(4, value); }
+        public bool Physicless { get => GetMiscOption(0); set => SetMiscOption(0, value); }
+        public bool OptimizeEnds { get => GetMiscOption(1); set => SetMiscOption(1, value); }
         public float SideOffsetU { get => uvOffsets.x; set => uvOffsets.Set(value, uvOffsets.y, uvOffsets.z, uvOffsets.w); }
         public float SideOffsetV { get => uvOffsets.y; set => uvOffsets.Set(uvOffsets.x, value, uvOffsets.z, uvOffsets.w); }
         public float EndOffsetU { get => uvOffsets.z; set => uvOffsets.Set(uvOffsets.x, uvOffsets.y, value, uvOffsets.w); }
@@ -275,13 +425,10 @@ namespace CarnationVariableSectionPart
             }
         }
 
-        public CVSPMeshBuilder MeshBuilder
-        {
-            get => CVSPMeshBuilder.Instance;
-        }
+        public CVSPMeshBuilder MeshBuilder => CVSPMeshBuilder.Instance;
 
         private MeshFilter mf;
-        private MeshFilter Mf
+        internal MeshFilter Mf
         {
             get
             {
@@ -294,15 +441,15 @@ namespace CarnationVariableSectionPart
             }
         }
 
-        private MeshCollider collider;
+        private MeshCollider _collider;
         public MeshCollider Collider
         {
             get
             {
                 if (!Mf) _ = Mf;
-                return collider;
+                return _collider;
             }
-            private set => collider = value;
+            private set => _collider = value;
         }
         #region Textures References
         public Texture EndsDiffTexture;
@@ -354,6 +501,9 @@ namespace CarnationVariableSectionPart
         }
         public bool PartParamModified => CVSPField.ValueChanged(this);
         public bool ShouldUpdateGeometry => PartParamModified || ForceUpdate;
+
+        private bool linkEditing;
+
         public bool ForceUpdate { get; set; } = false;
         private bool?[] calculatedSectionVisiblity = new bool?[2];
         int[] subdivideLevels = new int[8];
@@ -373,7 +523,8 @@ namespace CarnationVariableSectionPart
         [KSPField(guiActive = false, guiActiveEditor = true, guiFormat = "F2", guiName = "#LOC_CVSP_DryMass")]
         private float dryMass;
         //private float currWetMass;
-        private static MethodInfo onShipModified = typeof(CostWidget).GetMethod("onShipModified", BindingFlags.NonPublic | BindingFlags.Instance);
+        private static readonly MethodInfo onShipModified = typeof(CostWidget).GetMethod("onShipModified", BindingFlags.NonPublic | BindingFlags.Instance);
+        private static readonly float CdSideMult = 0.407f;
         #endregion
         #region To Access Cost Widget at Bottom Left Corner
         private static CostWidget _costWidget;
@@ -393,7 +544,6 @@ namespace CarnationVariableSectionPart
         private Quaternion partWldRotBeforeEdit;
         private Vector3 partWldPosBeforeEdit;
         private float twistBeforeEdit;
-        private float tilt0BeforeEdit;
         private float tilt1BeforeEdit;
         private float runBeforeEdit;
         private float raiseBeforeEdit;
@@ -409,10 +559,10 @@ namespace CarnationVariableSectionPart
         #endregion
         private static string TextureFolderPath;
         #region Default Textures
-        private static Texture2D defaultSideDiff, defaultSideNorm, defaultSideSpec;
-        private static Texture2D defaultEndDiffu, defaultEndNorma, defaultEndSpecu;
-        private static Texture2D defaultEmptyNorm, defaultEmptySpec;
-        private static bool DefaultTexuresLoaded = false;
+        public static Texture2D defaultSideDiff, defaultSideNorm, defaultSideSpec;
+        public static Texture2D defaultEndDiffu, defaultEndNorma, defaultEndSpecu;
+        public static Texture2D defaultEmptyNorm, defaultEmptySpec;
+        public static bool DefaultTexuresLoaded = false;
         #endregion
         private Texture2D plainColorTexture;
 
@@ -508,35 +658,42 @@ namespace CarnationVariableSectionPart
             //}
             DefaultTexuresLoaded = true;
         }
-        internal void ForceUpdateGeometry()
+        internal void ForceUpdateGeometry(bool updateColliders = true)
         {
             var current = MeshBuilder.CurrentBuilding;
             if (current)
                 MeshBuilder.FinishBuilding(current);
             MeshBuilder.StartBuilding(Mf, this);
             ForceUpdate = true;
-            UpdateGeometry();
+            UpdateGeometry(updateColliders);
             MeshBuilder.FinishBuilding(this);
             ForceUpdate = false;
             if (current)
                 MeshBuilder.StartBuilding(current.Mf, current);
         }
-        internal void UpdateGeometry()
+        internal void UpdateGeometry(bool updateColliders = true)
         {
             if (MeshBuilder == null) return;
             if (ShouldUpdateGeometry)
             {
                 //if (!Section1Transform) SetupSectionNodes();
-                MeshBuilder.Update(Section0Radius, Section1Radius, subdivideLevels);
 
-                Collider.sharedMesh = null;
-                Collider.sharedMesh = Mf.mesh;
+                lock (MeshBuilder)
+                {
+                    MeshBuilder.Update(this, Section0Radius, Section1Radius, GetCornerTypes(), subdivideLevels);
+                }
 
-                if (CVSPConfigs.FAR && HighLogic.LoadedSceneIsEditor && !gizmoEditing) FARAPI.FAR_UpdateCollider(this);
+                if (updateColliders)
+                {
+                    Collider.sharedMesh = null;
+                    Collider.sharedMesh = Mf.mesh;
+
+                    if (CVSPConfigs.FAR && HighLogic.LoadedSceneIsEditor && !gizmoEditing) FARAPI.FAR_UpdateCollider(this);
+                }
             }
         }
 
-        private void UpdateSectionTransforms()
+        internal void UpdateSectionTransforms()
         {
             Section1Transform.localRotation = Quaternion.Euler(Tilt1, Twist, 180f);
             Section1Transform.localPosition = new Vector3(Run, -Length / 2f, Raise);
@@ -600,12 +757,14 @@ namespace CarnationVariableSectionPart
             CopyMaterialFrom(from);
 
             tankType = from.tankType;
-            physicless = from.physicless;
-            optimizeEnds = from.optimizeEnds;
+            Physicless = from.Physicless;
+            OptimizeEnds = from.OptimizeEnds;
+
+            SectionCorners = from.SectionCorners;
         }
         internal void CopyMaterialFrom(ModuleCarnationVariablePart from)
         {
-            colorTint = Clone(from.colorTint);
+            colorTint = from.colorTint;
             shininess = from.shininess;
             SideDiffTexture = from.SideDiffTexture;
             SideNormTexture = from.SideNormTexture;
@@ -647,10 +806,7 @@ namespace CarnationVariableSectionPart
                 RemoveAllResources();
             }
 
-            if (currTankDef.dryMassCalcByArea)
-                dryMass = surfaceArea * currTankDef.dryMassPerArea;
-            else
-                dryMass = totalVolume * currTankDef.dryMassPerVolume;
+            dryMass = Mathf.Lerp(totalVolume, surfaceArea, currTankDef.dryMassCalcCoeff) * currTankDef.dryMassPerVolume;
             dryCost = dryMass * currTankDef.dryCostPerMass;
             if (HighLogic.LoadedSceneIsEditor)
             {
@@ -692,10 +848,7 @@ namespace CarnationVariableSectionPart
                     RemoveAllResources();
                 }
 
-                if (currTankDef.dryMassCalcByArea)
-                    dryMass = surfaceArea * currTankDef.dryMassPerArea;
-                else
-                    dryMass = totalVolume * currTankDef.dryMassPerVolume;
+                dryMass = Mathf.Lerp(totalVolume, surfaceArea, currTankDef.dryMassCalcCoeff) * currTankDef.dryMassPerVolume;
                 dryCost = dryMass * currTankDef.dryCostPerMass;
                 if (HighLogic.LoadedSceneIsEditor)
                 {
@@ -775,6 +928,7 @@ namespace CarnationVariableSectionPart
         private AttachNode node0 => part.attachNodes[0];
         private AttachNode node1 => part.attachNodes[1];
         private AttachNode surfNode => part.srfAttachNode;
+        internal DragCube dragCube => part.DragCubes.Cubes[0];
         float IParameterMonitor.LastEvaluatedTime { get; set; }
         bool IParameterMonitor.CachedValueChangedInCurrentFrame { get; set; }
         List<object> IParameterMonitor.OldValues { get; set; } = new List<object>();
@@ -876,6 +1030,77 @@ namespace CarnationVariableSectionPart
             node0.orientation = Section0Transform.localRotation * Vector3.up;
             node1.orientation = Section1Transform.localRotation * Vector3.up;
         }
+        private void UpdateAero()
+        {
+            #region WTF are these???
+            /*float midW = (Section0Width + Section1Width) * .5f;
+            var xsize = midW + Run * .5f;
+            float midH = (Section0Height + Section1Height) * .5f;
+            var zsize = midH + Raise * .5f;
+            dragCube.Size = new Vector3(xsize, Length, zsize);
+
+            dragCube.Area[0] = dragCube.Area[1] = (Section0Height + Section1Height) * .5f * Length;
+            float LARatio = Length / (section0Area + section1Area) * 2f;
+            float maxArea = Mathf.Max(section0Area, section1Area);
+            dragCube.Area[2] = Mathf.Max(section0Area, Mathf.Lerp(section0Area, maxArea, 1 / (LARatio + 1f)));
+            dragCube.Area[3] = Mathf.Max(section1Area, Mathf.Lerp(section1Area, maxArea, 1 / (LARatio + 1f)));
+            dragCube.Area[4] = dragCube.Area[5] = midW * Length;
+
+            dragCube.Drag[0] = dragCube.Drag[1] = CdSideways(midH, Length, midW);
+            dragCube.Drag[2] = CdHeadOn(section0Area, section1Area, Length);
+            dragCube.Drag[3] = CdHeadOn(section1Area, section0Area, Length);
+            dragCube.Drag[4] = dragCube.Drag[5] = CdSideways(midW, Length, midH);
+
+            dragCube.Depth[0] = dragCube.Depth[1] = midW / 2f;
+            float depthYP = Mathf.Lerp(0, Length, section1Area / Mathf.Max(section0Area + section1Area, 0.001f));
+            dragCube.Depth[2] = depthYP;
+            dragCube.Depth[3] = Length - depthYP;
+            dragCube.Depth[4] = dragCube.Depth[5] = midH / 2f;
+
+            for (int i = 0; i < ScreenMessages.Instance.ActiveMessages.Count; i++)
+            {
+                ScreenMessage item = ScreenMessages.Instance.ActiveMessages[i];
+                ScreenMessages.RemoveMessage(item);
+            }
+            //var dc = dragCube;
+            //   ScreenMessages.PostScreenMessage("area: " + toString(dc.Area) + "\ndepth :" + toString(dc.Depth) + "\nsize :" + dc.Size + "\ndrag :" + toString(dc.Drag) + "\ndragM :" + toString(dc.DragModifiers), true);
+            dragCube.Center = CoMOffset;
+            dragCube.Weight = 1; */
+            #endregion
+
+           // preserveHandleGizmos = true;
+            var newCude = DragCubeSystem.Instance.RenderProceduralDragCube(part);
+            part.DragCubes.ClearCubes();
+            part.DragCubes.Cubes.Add(newCude);
+            part.DragCubes.ResetCubeWeights();
+        }
+
+        private static string toString(float[] arr)
+        {
+            StringBuilder sb = new StringBuilder(arr.Length * 6);
+            foreach (var i in arr)
+            {
+                sb = sb.Append(i.ToString("#0.##")).Append(", ");
+            }
+            return sb.ToString();
+        }
+
+        float CdHeadOn(float areaNose, float areaTail, float length)
+        {
+            float yAreaRatio;
+            if (areaNose == 0) yAreaRatio = float.PositiveInfinity;
+            else yAreaRatio = areaTail / areaNose;
+
+            float lMult = 1f / (length + 1) + .184f;
+            float yCd = 1f / (yAreaRatio + 1f) + headOnAdd;
+            return yCd *= lMult * headOnScale;
+        }
+        float CdSideways(float width, float height, float depth)
+        {
+            var area = width * height;
+            float ratio = Mathf.Max(0.001f, depth / area);
+            return Mathf.Min(0.85f, 1 / ratio * CdSideMult);
+        }
         private void Start()
         {
             //使用旧版兼容的方法
@@ -886,25 +1111,38 @@ namespace CarnationVariableSectionPart
                 GameEvents.onEditorPartEvent.Add(OnPartEvent);
                 LoadPart();
                 partInfo = part.partInfo;
+
+                if (TechRequired != null && TechRequired != string.Empty && !partInfo.TechRequired.Equals(TechRequired))
+                {
+                    partInfo.TechRequired = TechRequired;
+                    Section0Width = Section0Width;
+                    Section1Width = Section1Width;
+                    Section0Height = Section0Height;
+                    Section1Height = Section1Height;
+                    Run = Run;
+                    Raise = Raise;
+                    Length = Length;
+                }
             }
-            else
+            else if (HighLogic.LoadedSceneIsFlight)
             {
-                fready = false;
                 partLoaded = false;
-                GameEvents.onFlightReady.Add(OnFReady);
-            }
-        }
-        private void OnFReady()
-        {
-            if (!fready)
                 LoadPart();
-            fready = true;
+                //GameEvents.onFlightReady.Add(OnFReady);
+            }
         }
         void LoadPart()
         {
             if (partLoaded) return;
             partLoaded = true;
             LoadTexture();
+
+            #region Load Corners' types
+            string[] t = SplitStringByComma(SectionCorners, 8);
+            for (int i = 0; i < GetCornerTypes().Length; i++)
+                GetCornerTypes()[i] = CVSPConfigs.SectionCornerDefinitions.FirstOrDefault(q => q.name.Equals(t[i]));
+            #endregion
+
             UpdateMaterials();
             //SetupSectionNodes();
             //_ = Section1Transform;
@@ -919,7 +1157,7 @@ namespace CarnationVariableSectionPart
                 CVSPMeshBuilder.BuildingCVSPForFlight = true;
                 MeshBuilder.SetHideSections(isSectionVisible);
                 UpdateCoM();
-                if (physicless)
+                if (Physicless)
                 {
                     part.physicalSignificance = Part.PhysicalSignificance.NONE;
                     var rgd = part.GetComponent<Rigidbody>();
@@ -941,6 +1179,7 @@ namespace CarnationVariableSectionPart
                 if (Section1) Destroy(Section1);
 
                 if (CVSPConfigs.FAR) StartCoroutine(DoFAR_UpdateCollider());
+                StartCoroutine(ArodynamicCorrection());
             }
 
             //不清楚有没有用
@@ -948,12 +1187,28 @@ namespace CarnationVariableSectionPart
             part.attachNodes[1].secondaryAxis = Vector3.forward;
         }
 
+        IEnumerator ArodynamicCorrection()
+        {
+            UpdateAero();
+            var time = Time.time;
+            var correctOne = dragCube.Drag[0];
+            var correctOne_ = dragCube.Drag[3];
+            yield return new WaitForFixedUpdate();
+            yield return new WaitForFixedUpdate();
+            yield return new WaitUntil(() => Time.time - time > 5f || (dragCube.Drag[0] != correctOne && dragCube.Drag[3] != correctOne_));
+            UpdateAero();
+        }
+
+        /// <summary>
+        /// Wait unitil FAR initialized
+        /// </summary>
         IEnumerator DoFAR_UpdateCollider()
         {
+            yield return new WaitForSecondsRealtime(0.1f);
             while (true)
             {
                 if (FARAPI.FAR_UpdateCollider(this))
-                    break;
+                    yield break;
                 yield return new WaitForSecondsRealtime(0.1f);
             }
         }
@@ -963,11 +1218,11 @@ namespace CarnationVariableSectionPart
             if (CVSPUIManager.Instance)
                 if (!CVSPEditorTool.Instance.lastUIModifiedPart)
                     CVSPUIManager.Instance.Close();
-            CVSPEditorTool.OnPartDestroyed();
+          //if (!preserveHandleGizmos) CVSPEditorTool.OnPartDestroyed();
+          //else preserveHandleGizmos = false;
             //throws exception when game killed
             //Debug.Log("[CRFP] Part Module Destroyed!!!!!!!");
             GameEvents.onEditorPartEvent.Remove(OnPartEvent);
-            GameEvents.onFlightReady.Remove(OnFReady);
         }
         /// <summary>
         /// 如果按住了手柄进行复制零件操作，则有残余的物体，需要清除
@@ -983,7 +1238,8 @@ namespace CarnationVariableSectionPart
         }
         private void OnPartEvent(ConstructionEventType type, Part p)
         {
-            CVSPEditorTool.Instance.Deactivate();
+            if (type != ConstructionEventType.PartDragging)
+                CVSPEditorTool.Instance.Deactivate();
             if (!CVSPEditorTool.Instance.lastUIModifiedPart)
                 CVSPUIManager.Instance.Close();
             switch (type)
@@ -1025,7 +1281,6 @@ namespace CarnationVariableSectionPart
                 UpdateSectionsVisiblity();
             UpdateCostWidget();
         }
-
         internal void UpdateCostWidget()
         {
             if (part.localRoot == part && part.isAttached)
@@ -1036,7 +1291,6 @@ namespace CarnationVariableSectionPart
                     onShipModified.Invoke(costWidget, new object[] { part.ship });
                 }
         }
-
         private void LoadTexture()
         {
             LoadTextureMaps(sideTexNames, out SideDiffTexture, out SideNormTexture, out SideSpecTexture);
@@ -1096,27 +1350,50 @@ namespace CarnationVariableSectionPart
         }
         internal static string[] SplitStringByComma(string s, int count)
         {
-            //dont remove spaces within words
-            s = Regex.Replace(s, " *, *", ",");
-            s = Regex.Replace(s, @"^\s+", "");
-            s = Regex.Replace(s, @"\s+$", "");
-            string[] result = s.Split(',');
-            if (result == null)
+            StringBuilder sb = new StringBuilder(8);
+            string[] result3 = new string[count];
+            int id = 0;
+            bool isWord = false;
+            int j;
+            for (j = 0; j < s.Length; j++)
             {
-                string[] result1 = new string[count];
-                for (int i = 0; i < count; i++)
-                    result1[i] = "";
-                return result1;
+                char c = s[j];
+                if (c == ' ')
+                    //not in a word, skip
+                    if (!isWord) continue;
+                    //two spaces in a row, add word and skip next space
+                    else
+                    {
+                        bool b = j < s.Length - 1 ? (s[j + 1] == ' ') : true;
+                        if (b)
+                        {
+                            result3[id++] = sb.ToString();
+                            sb = sb.Clear();
+                            isWord = false;
+                            j++;
+                            continue;
+                        }
+                    }
+                if (c == ',')
+                    if (isWord)
+                    {
+                        if (id == count - 1)
+                            throw new ArgumentException("Invalid string, too many commas");
+                        result3[id++] = sb.ToString();
+                        sb = sb.Clear();
+                        isWord = false;
+                    }
+                    else
+                        throw new ArgumentException("Invalid string, cannot split");
+                else
+                {
+                    isWord = true;
+                    sb = sb.Append(c);
+                }
             }
-            if (result.Length < count)
-            {
-                string[] result2 = new string[count];
-                result.CopyTo(result2, 0);
-                for (int i = result.Length; i < result2.Length; i++)
-                    result2[i] = "";
-                return result2;
-            }
-            return result;
+            if (id == count - 1)
+                result3[id] = sb.ToString();
+            return result3;
         }
         private void Update()
         {
@@ -1124,10 +1401,10 @@ namespace CarnationVariableSectionPart
             {
                 if (Model.transform.localScale != scale)
                     Model.transform.localScale = scale;
-                if (gizmoEditing || uiEditing)
+                if (gizmoEditing || uiEditing || linkEditing)
                 {
                     uiEditing = false;
-                    if (PartParamModified || startEdit)
+                    if (PartParamModified || startEdit || linkEditing)
                     {
                         if (startEdit)
                         {
@@ -1137,6 +1414,14 @@ namespace CarnationVariableSectionPart
                         }
                         else if (Input.anyKey)
                             modifiedDuringHoldingKey = true;
+
+                        if (preserveTimer == -1)
+                        {
+                            if (!linkEditing && (this == CVSPEditorTool.Instance.gizmoEditingPart || this == CVSPEditorTool.Instance.uiEditingPart))
+                                LinkSections();
+                        }
+                        else
+                            preserveTimer--;
 
                         UpdateFuelTank();
                         UpdateCoM();
@@ -1151,6 +1436,8 @@ namespace CarnationVariableSectionPart
                             bool symetryMirror = this.part.symMethod == SymmetryMethod.Mirror;
                             ((IParameterMonitor)cvsp).IgnoreValueChangeOnce = true;
                             cvsp.CopyParamsFrom(this, symetryMirror);
+                            //TO-DO: support link in symetry parts, maybe add some code when calling LinkSections(int preserve)  
+                            //  cvsp.LinkSections();
                             if (startEdit)
                                 UpdateMaterials();
                             if (symetryMirror)
@@ -1169,10 +1456,14 @@ namespace CarnationVariableSectionPart
                             else
                                 cvsp.Mf.mesh = Mf.mesh;
                         }
-                        AttachChildPartToNode();
-                        UpdateSectionTransforms();
-                        UpdatePosition();
-                        DetachChildPartFromNode();
+                        if (!linkEditing)
+                        {
+                            AttachChildPartToNode();
+                            UpdateSectionTransforms();
+                            UpdatePosition();
+                            DetachChildPartFromNode();
+                        }
+                        linkEditing = false;
                         UpdateAttchNodePos();
                         UpdateAttchNodeSize();
                         UpdateGeometry();
@@ -1180,13 +1471,57 @@ namespace CarnationVariableSectionPart
                 }
                 if (Time.unscaledTime - lastChecked > Time.unscaledDeltaTime * .75f)
                 {
+                    #region Test
+                    /*if (Input.GetKeyDown(KeyCode.L))
+                    {
+                        headOnAdd -= 0.1f;
+                        foreach (var c in part.ship.Parts)
+                        {
+                            if (c && c.TryGetComponent<ModuleCarnationVariablePart>(out var cvsp))
+                                cvsp.UpdateDragCube();
+                        }
+                        //                         UpdateDragCube();
+                    }
+                    if (Input.GetKeyDown(KeyCode.O))
+                    {
+                        headOnAdd += 0.1f;
+                        foreach (var c in part.ship.Parts)
+                        {
+                            if (c && c.TryGetComponent<ModuleCarnationVariablePart>(out var cvsp))
+                                cvsp.UpdateDragCube();
+                        }
+                        // UpdateDragCube();
+                    }
+                    else if (Input.GetKeyDown(KeyCode.M))
+                    {
+                        ModuleCarnationVariablePart.headOnScale -= 0.1f;
+                        foreach (var c in part.ship.Parts)
+                        {
+                            if (c && c.TryGetComponent<ModuleCarnationVariablePart>(out var cvsp))
+                                cvsp.UpdateDragCube();
+                        }
+                        // UpdateDragCube();
+                    }
+                    else if (Input.GetKeyDown(KeyCode.K))
+                    {
+                        ModuleCarnationVariablePart.headOnScale += 0.1f;
+                        foreach (var c in part.ship.Parts)
+                        {
+                            if (c && c.TryGetComponent<ModuleCarnationVariablePart>(out var cvsp))
+                                cvsp.UpdateDragCube();
+                        }
+                        // UpdateDragCube();
+                    }*/
+                    #endregion
                     lastChecked = Time.unscaledTime;
                     if (Input.anyKey)
                     {
                         anyKeyUp = false;
                         holdingKey = true;
+                        if (Input.anyKeyDown) keyDownMousePos = Input.mousePosition;
                         if (Input.GetKeyDown(CVSPEditorTool.ToggleKey))
-                            CVSPEditorTool.Activate(CVSPEditorTool.RaycastCVSP(this));
+                            CVSPEditorTool.Activate(CVSPEditorTool.RaycastCVSP());
+                        #region If mouse over UI, respond to user switching angle snap
                         else if (Input.GetKeyDown(KeyCode.C) && !Input.GetKey(KeyCode.LeftControl))
                         {
                             if (CVSPEditorTool.Instance.GameUILocked)
@@ -1202,82 +1537,66 @@ namespace CarnationVariableSectionPart
                                 GameUI_SnapBtn.SetState(GameSettings.VAB_USE_ANGLE_SNAP ? "Angle" : "None");
                             }
                         }
+                        #endregion
                         else if (CVSPUIManager.Initialized && !CVSPAxisField.AnyInputFieldEditing)
                         {
+                            #region Copy/Paste by Ctrl+C/V
                             if (Input.GetKey(KeyCode.LeftControl))
                             {
                                 if (Input.GetKeyDown(KeyCode.V))
-                                {
-                                    #region paste from stored module
-                                    /*if (clipboardGO)
-                                    {
-                                        ModuleCarnationVariablePart cvsp = clipboardGO.GetComponent<ModuleCarnationVariablePart>();
-                                        CopyParamsFrom(cvsp);
-                                        //if (uiEditing || gizmoEditing)
-                                        //    BackupParametersBeforeEdit();
-                                        CVSPEditorTool.Instance.CopyParamsToUI(cvsp);
-                                        StartCoroutine(CtrlVPastedUpdate());
-                                    } */
-                                    #endregion
-
+                                    #region paste from stored data
                                     if (clipboard != null)
                                     {
                                         for (int i = Fields.Count - 1; i >= 0; i--)
                                             Fields[i].SetValue(clipboard[i], this);
+                                        var linkNode = LinkedSectionID(this, CVSPEditorTool.Instance.lastUIModifiedPart);
+                                        if (linkNode >= 0) LinkSections(linkNode);
                                         StartCoroutine(CtrlVPastedUpdate());
                                     }
-                                }
-                                else if (Input.GetKeyDown(KeyCode.C) && CVSPEditorTool.Instance.uiEditingPart)
-                                {
-                                    #region store the part module component
-                                    /*if (clipboardGO)
-                                        Destroy(clipboardGO);
-                                    clipboardGO = Instantiate(CVSPEditorTool.Instance.uiEditingPart.part.gameObject);
-                                    clipboardGO.SetActive(false);
-                                    var c = clipboardGO.GetComponentsInChildren<Transform>();
-                                    if (c != null)
-                                        for (int j = 0; j < c.Length; j++)
-                                        {
-                                            Transform i = c[j];
-                                            if (i == clipboardGO.transform) continue;
-                                            i.SetParent(null);
-                                            Destroy(i.gameObject);
-                                        }
-                                    var com = clipboardGO.GetComponents<Component>();
-                                    for (int i1 = 0; i1 < com.Length; i1++)
-                                    {
-                                        Component j = com[i1];
-                                        if (!(j is ModuleCarnationVariablePart) && !(j is Transform))
-                                            Destroy(j);
-                                    } */
                                     #endregion
-
-                                    clipboard = new object[Fields.Count];
-                                    for (int i = Fields.Count - 1; i >= 0; i--)
-                                        clipboard[i] = Fields[i].GetValue(CVSPEditorTool.Instance.uiEditingPart);
-                                }
+                                    else if (Input.GetKeyDown(KeyCode.C) && CVSPEditorTool.Instance.uiEditingPart)
+                                    #region Store data
+                                    {
+                                        if (clipboard == null)
+                                            clipboard = new object[Fields.Count];
+                                        for (int i = Fields.Count - 1; i >= 0; i--)
+                                            clipboard[i] = Fields[i].GetValue(CVSPEditorTool.Instance.uiEditingPart);
+                                    }
+                                #endregion
                             }
+                            #endregion
+                            #region Reload CRFP Configs and Settings
                             else if (Input.GetKey(KeyCode.Equals) && Input.GetKeyDown(KeyCode.Minus))
                                 CVSPConfigs.Reload();
+                            #endregion
                         }
                     }
                     else if (holdingKey)
                     {
+                        #region Key released
                         anyKeyUp = true;
                         holdingKey = false;
-                        if (Input.GetMouseButtonUp(1))
-                            CVSPEditorTool.ActivateWithoutGizmos(CVSPEditorTool.RaycastCVSP(this));
+                        #endregion
+                        if (Input.GetMouseButtonUp(1) && (keyDownMousePos - Input.mousePosition).sqrMagnitude < 200)
+                            CVSPEditorTool.ActivateWithoutGizmos(CVSPEditorTool.RaycastCVSP());
                     }
-                }
                 if (modifiedDuringHoldingKey && anyKeyUp)
                 {
+                        UpdateAero();
+                    foreach (var syc in part.symmetryCounterparts)
+                        syc.FindModuleImplementing<ModuleCarnationVariablePart>().UpdateAero();
                     modifiedDuringHoldingKey = false;
                     if (FullUndoAndRedo)
                         EditorLogic.fetch.SetBackup();
+                    if (CVSPConfigs.FAR)
+                        FARAPI.FAR_UpdateCollider(this);
+                }
                 }
             }
             else if (CVSPMeshBuilder.BuildingCVSPForFlight)
             {
+
+
                 CVSPMeshBuilder.BuildingCVSPForFlight = false;
                 //Debug.Log($"[CRFP] Created {CVSPMeshBuilder.MeshesBuiltForFlight} meshes in {CVSPMeshBuilder.GetBuildTime() * .001d:F2}s");
             }
@@ -1291,7 +1610,6 @@ namespace CarnationVariableSectionPart
             yield return new WaitForEndOfFrame();
             gizmoEditing = temp;
         }
-
         private void MirrorPart()
         {
             if (part.symmetryCounterparts.Count == 1)
@@ -1311,7 +1629,6 @@ namespace CarnationVariableSectionPart
                 }
             }
         }
-
         private void UpdateAttchNodeSize()
         {
             var size0 = Mathf.Max(Section0Height, Section0Width);
@@ -1322,7 +1639,6 @@ namespace CarnationVariableSectionPart
             surfNode.position.x = Mathf.Lerp(size0, size1, .5f) / 2f;
             surfNode.position = surfNode.position + CoMOffset;
         }
-
         internal void OnEndGizmoEdit()
         {
             gizmoEditing = false;
@@ -1339,12 +1655,12 @@ namespace CarnationVariableSectionPart
         }
         internal void OnStartGizmosEdit()
         {
-            EditorLogic.fetch.SetBackup();
-            Part symRoot = part;
-            while (symRoot.parent && symRoot.parent.symmetryCounterparts.Count != 0)
-                symRoot = symRoot.parent;
-            if (symRoot == part)
-                ScreenMessages.PostScreenMessage($"this is symRoot", 0.5f, false);
+            //EditorLogic.fetch.SetBackup();
+            //Part symRoot = part;
+            //while (symRoot.parent && symRoot.parent.symmetryCounterparts.Count != 0)
+            //    symRoot = symRoot.parent;
+            //if (symRoot == part)
+            //    ScreenMessages.PostScreenMessage($"this is symRoot", 0.5f, false);
             gizmoEditing = true;
             startEdit = true;
 
@@ -1389,7 +1705,7 @@ namespace CarnationVariableSectionPart
         /// <returns></returns>
         private void UpdateSectionsVisiblity()
         {
-            if (optimizeEnds)
+            if (OptimizeEnds)
             {
                 calculatedSectionVisiblity = new bool?[] { new bool?(), new bool?() };
                 Vector2 result = new Vector2(1, 1);
@@ -1400,7 +1716,6 @@ namespace CarnationVariableSectionPart
                 isSectionVisible = result;
             }
         }
-
         private void UpdateSectionsVisiblity(int nodeID)
         {
             var node = part.attachNodes[nodeID];
@@ -1507,7 +1822,6 @@ namespace CarnationVariableSectionPart
             partWldPosBeforeEdit = part.transform.position;
             twistBeforeEdit = Twist;
 
-            tilt0BeforeEdit = Tilt0;
             tilt1BeforeEdit = Tilt1;
 
             runBeforeEdit = Run;
@@ -1523,7 +1837,6 @@ namespace CarnationVariableSectionPart
         internal void CorrectTwistAndTilts(float oldTwist, Vector2 oldTilts)
         {
             twistBeforeEdit = oldTwist;
-            tilt0BeforeEdit = oldTilts.x;
             tilt1BeforeEdit = oldTilts.y;
         }
         public static Vector3 Clone(Vector3 v) => new Vector3(v.x, v.y, v.z);
@@ -1542,7 +1855,7 @@ namespace CarnationVariableSectionPart
                 if (!plainColorTexture)
                     plainColorTexture = new Texture2D(2, 2);
                 plainColorTexture.SetPixels(new Color[] { color, color, color, color });
-                plainColorTexture.Apply();
+                plainColorTexture.Apply(false, false);
                 if (MeshRender.sharedMaterials.Length != 2)
                     MeshRender.sharedMaterials = new Material[2]{
                         new Material(CVSPEditorTool.PartShader){ color=color},
@@ -1593,10 +1906,10 @@ namespace CarnationVariableSectionPart
             var maxArea = Section0Height * Section0Width / 4;
             //从方形面积扣除因倒圆少了的面积
             for (int i = 0; i < 4; i++)
-                section0Area += maxArea * (1 - AreaDifference * Mathf.Abs(GetCornerRadius(i)));
+                section0Area += maxArea * (1 - (1 - GetCornerTypes()[i].cornerArea) * Mathf.Abs(GetCornerRadius(i)));
             maxArea = Section1Height * Section1Width / 4;
             for (int i = 4; i < 8; i++)
-                section1Area += maxArea * (1 - AreaDifference * Mathf.Abs(GetCornerRadius(i)));
+                section1Area += maxArea * (1 - (1 - GetCornerTypes()[i].cornerArea) * Mathf.Abs(GetCornerRadius(i)));
         }
         private void CalcSurfaceArea()
         {
@@ -1608,10 +1921,10 @@ namespace CarnationVariableSectionPart
             section1Perimeter = 0;
             var maxPeri = (Section0Width + Section0Height) / 2;
             for (int i = 0; i < 4; i++)
-                section0Perimeter += maxPeri * (1 - PerimeterDifference * Mathf.Abs(GetCornerRadius(i)));
+                section0Perimeter += maxPeri * (1 - (1 - GetCornerTypes()[i].cornerPerimeter) * Mathf.Abs(GetCornerRadius(i)));
             maxPeri = (Section1Width + Section1Height) / 2;
             for (int i = 4; i < 8; i++)
-                section1Perimeter += maxPeri * (1 - PerimeterDifference * Mathf.Abs(GetCornerRadius(i)));
+                section1Perimeter += maxPeri * (1 - (1 - GetCornerTypes()[i].cornerPerimeter) * Mathf.Abs(GetCornerRadius(i)));
         }
         public float GetModuleCost(float defaultCost, ModifierStagingSituation sit)
         {
@@ -1639,10 +1952,12 @@ namespace CarnationVariableSectionPart
         }
         public Vector3 GetModuleSize(Vector3 defaultSize, ModifierStagingSituation sit)
         {
-            var size = new Vector3();
-            size.x = Mathf.Abs(Run) + Mathf.Max(Section0Height, Section0Width) / 2f + Mathf.Max(Section1Height, Section1Width) / 2f;
-            size.z = Mathf.Abs(Raise) + Mathf.Max(Section0Height, Section0Width) / 2f + Mathf.Max(Section1Height, Section1Width) / 2f;
-            size.y = Length;
+            var size = new Vector3
+            {
+                x = Mathf.Abs(Run) + Mathf.Max(Section0Height, Section0Width) / 2f + Mathf.Max(Section1Height, Section1Width) / 2f,
+                z = Mathf.Abs(Raise) + Mathf.Max(Section0Height, Section0Width) / 2f + Mathf.Max(Section1Height, Section1Width) / 2f,
+                y = Length
+            };
             size.x -= 1f;
             size.z -= 1f;
             size.y -= 2f;
@@ -1662,17 +1977,26 @@ namespace CarnationVariableSectionPart
         private static bool holdingKey;
         private bool modifiedDuringHoldingKey;
         internal static bool FullUndoAndRedo;
+        private int preserveTimer;
+        private Vector3 keyDownMousePos;
+        internal static string TechRequired;
+        private static float headOnAdd = .587f;
+        //private static float lastChecked1;
+        private static float headOnScale = 1.6f;
+        private bool preserveHandleGizmos;
 
         private void OnGUI()
         {
-            if (HighLogic.LoadedSceneIsEditor && CVSPUIManager.Instance && CVSPUIManager.HoveringOnRadius)
+            if (HighLogic.LoadedSceneIsEditor && CVSPUIManager.Instance && CVSPUIManager.HoveringOnRadius >= 0)
             {
                 if (centeredStyle == null)
                 {
-                    centeredStyle = new GUIStyle("label");
-                    centeredStyle.alignment = TextAnchor.MiddleCenter;
+                    centeredStyle = new GUIStyle("label")
+                    {
+                        alignment = TextAnchor.MiddleCenter
+                    };
                 }
-                for (int i = 0; i < UI_Corners.Length; i++)
+                for (int i = 4 + CVSPUIManager.HoveringOnRadius * 4 - 1; i >= CVSPUIManager.HoveringOnRadius * 4; i--)
                 {
                     ScreenMarker marker = new ScreenMarker();
                     marker.SetPosition(UI_Corners[i] + UI_Corners_Dir[i], EditorLogic.fetch.editorCamera);
@@ -1684,6 +2008,8 @@ namespace CarnationVariableSectionPart
                     GUI.Label(marker.rectMarker, (i > 3 ? (i - 3) : i + 1).ToString(), centeredStyle);
                 }
             }
+            /*GUI.Box(new Rect(200, 200, 120, 20), "add: " + headOnAdd);
+            GUI.Box(new Rect(200, 220, 120, 20), "scale: " + headOnScale);*/
             /*  var dl = part.DragCubes.Cubes;
               if (dl != null)
                   for (int i = 0; i < dl.Count; i++)

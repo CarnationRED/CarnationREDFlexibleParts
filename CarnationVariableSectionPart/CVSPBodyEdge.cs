@@ -1,5 +1,6 @@
 ﻿using System;
 using UnityEngine;
+using CarnationVariableSectionPart.UI;
 namespace CarnationVariableSectionPart
 {
     public partial class CVSPMeshBuilder
@@ -52,7 +53,7 @@ namespace CarnationVariableSectionPart
             /// <param name="subdivideLevel1">1组一侧的细分等级，2的幂0</param>
             /// <param name="uvStartV0">0组一侧贴图坐标V值</param>
             /// <param name="uvStartV1">1组一侧贴图坐标V值</param>
-            public void MakeStrip(Vector3[] verts, int[] vertID0, int[] vertID1, float r0, float r1, float uvStartU0, float uvStartU1, out float uv0, out float uv1, ModuleCarnationVariablePart param, int subdivideLevel0, int subdivideLevel1, float uvStartV0, float uvStartV1, Quaternion qTiltRotInverse0, Quaternion qTiltRotInverse1)
+            public void MakeStrip(Vector3[] verts, int[] vertID0, int[] vertID1, float r0, float r1, float uvStartU0, float uvStartU1, out float uv0, out float uv1, ModuleCarnationVariablePart param, int subdivideLevel0, int subdivideLevel1, float uvStartV0, float uvStartV1, Quaternion qTiltRotInverse0, Quaternion qTiltRotInverse1, SectionCorner[] cornerTypes)
             {
                 this.subdivideLevel = Mathf.Max(subdivideLevel0, subdivideLevel1);
                 //只有当细分等级为0，才去真正创建网格，否则细分给子网格去做
@@ -71,7 +72,7 @@ namespace CarnationVariableSectionPart
                     R0 = r0;
                     R1 = r1;
                     //是否重新划分三角形，详见后文
-                    reTriangulate = R0 > R1;
+                    reTriangulate = Math.Abs(R0) > Math.Abs(R1);
                     additionVert = 0;
                     if (IsZero(R0)) additionVert++;
                     if (IsZero(R1)) additionVert++;
@@ -116,8 +117,8 @@ namespace CarnationVariableSectionPart
                             if (i > 0 && i / 2 < vertID0.Length - 2)
                             {
                                 //矫正圆角处的UV，达到圆角大小改变，圆角处UV增量也不变的效果
-                                length0 *= PerimeterSharp / PerimeterRound;
-                                length1 *= PerimeterSharp / PerimeterRound;
+                                length0 *= PerimeterSharp / cornerTypes[Id].cornerPerimeter;
+                                length1 *= PerimeterSharp / cornerTypes[Id + 4].cornerPerimeter;
                             }
                         //UV增加一个边长
                         uvStartU0 += length0 * param.SideScaleU;
@@ -166,16 +167,16 @@ namespace CarnationVariableSectionPart
                     //下面对有锐棱出现的情况进行处理
                     if (IsZero(R0))
                     {
-                        //R0==0的话，一定reTriangulate为false
-                        //角点对应编号：vertID0.Length - 1，影响位于中部的1个三角形：第vertID0.Length - 1
-                        index++;
-                        //新增（分割）点和uv到数组结尾
-                        vertices[index] = VectorCopy(vertices[vertID0.Length - 1]);
-                        uv[index] = VectorCopy(uv[vertID0.Length - 1]);
-                        //最后一个三角形
-                        var triID = vertID0.Length - 1;
-                        triangles[triID * 3] = index;
-                        triangles[triID * 3 + 3] = index;
+                        /*                        //R0==0的话，一定reTriangulate为false
+                                                //角点对应编号：vertID0.Length - 1，影响位于中部的1个三角形：第vertID0.Length - 1
+                                                index++;
+                                                //新增（分割）点和uv到数组结尾
+                                                vertices[index] = VectorCopy(vertices[vertID0.Length - 1]);
+                                                uv[index] = VectorCopy(uv[vertID0.Length - 1]);
+                                                //修改分割处两边的两个三角形
+                                                var triID = vertID0.Length - 1;
+                                                triangles[triID * 3] = index;
+                                                triangles[triID * 3 + 3] = index;*/
                     }
                     if (IsZero(R1))
                     {
@@ -212,8 +213,8 @@ namespace CarnationVariableSectionPart
                     var rMid = (r0 + r1) / 2f;
                     var sLvlMid = Mathf.Min(subdivideLevel0, subdivideLevel1) / 2;
                     var vMid = (uvStartV0 + uvStartV1) / 2f;
-                    child0.MakeStrip(verts0, vertID0, vertID1, r0, rMid, uvStartU0, uvStartMid, out uv0, out _, param, subdivideLevel0 / 2, sLvlMid / 2, uvStartV0, vMid, qTiltRotInverse0, qTiltRotInverse1);
-                    child1.MakeStrip(verts1, vertID0, vertID1, rMid, r1, uvStartMid, uvStartU1, out _, out uv1, param, sLvlMid / 2, subdivideLevel1 / 2, vMid, uvStartV1, qTiltRotInverse1, qTiltRotInverse1);
+                    child0.MakeStrip(verts0, vertID0, vertID1, r0, rMid, uvStartU0, uvStartMid, out uv0, out _, param, subdivideLevel0 / 2, sLvlMid / 2, uvStartV0, vMid, qTiltRotInverse0, qTiltRotInverse1, cornerTypes);
+                    child1.MakeStrip(verts1, vertID0, vertID1, rMid, r1, uvStartMid, uvStartU1, out _, out uv1, param, sLvlMid / 2, subdivideLevel1 / 2, vMid, uvStartV1, qTiltRotInverse1, qTiltRotInverse1, cornerTypes);
                 }
             }
             /// <summary>

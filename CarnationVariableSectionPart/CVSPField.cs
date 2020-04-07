@@ -5,6 +5,9 @@ using UnityEngine;
 
 namespace CarnationVariableSectionPart
 {
+    /// <summary>
+    /// Each CVSPField is check if changed every frame
+    /// </summary>
     [AttributeUsage(AttributeTargets.Field, AllowMultiple = false, Inherited = false)]
     internal class CVSPField : Attribute
     {

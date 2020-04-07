@@ -5,7 +5,7 @@ namespace CarnationVariableSectionPart
 {
     internal class RFAPI
     {
-        internal static void RF_UpdateVolume(ModuleCarnationVariablePart cvsp,float totalVolume)
+        internal static void RF_UpdateVolume(ModuleCarnationVariablePart cvsp, float totalVolume)
         {
             var mft = cvsp.part.FindModuleImplementing<ModuleFuelTanks>();
             if (mft == null)

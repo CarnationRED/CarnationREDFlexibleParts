@@ -18,8 +18,6 @@ namespace CarnationVariableSectionPart
         static Material defaultMat, fadeMat, highlightMat;
         private float lastMousePosX;
         private float lastMousePosY;
-        private float lastTransformPosX;
-        private float lastTransformPosY;
         private int _SectionID = -1;
         public ModifierType type;
         public int ID;
@@ -72,9 +70,6 @@ namespace CarnationVariableSectionPart
         //定义事件，类型为上面定义的ClickHandler委托  
         public event Handle OnValueChanged;
 
-        void Start()
-        {
-        }
         private void SetFade(bool f)
         {
             if (faded != f)
@@ -93,7 +88,7 @@ namespace CarnationVariableSectionPart
         }
 
         // Update is called once per frame
-        void FixedUpdate()
+        void Update()
         {
             if (!engaged)
             {
@@ -150,7 +145,7 @@ namespace CarnationVariableSectionPart
                 OnValueChanged(Value0, Value1, ID, SectionID);
         }
 
-        internal void OnClick(RaycastHit hit)
+        internal void OnClick()
         {
             engaged = true;
             modifying = true;
@@ -184,12 +179,11 @@ namespace CarnationVariableSectionPart
             modifying = false;
             Render.sharedMaterial = (faded || hidden) ? fadeMat : defaultMat;
         }
-        float dx = 0, dy = 0, dz = 0;
-        float dx1 = 0, dy1 = 0, dz1 = 0;
 
+/*        float dx = 0, dy = 0, dz = 0;
+        float dx1 = 0, dy1 = 0, dz1 = 0;
         private void OnGUI()
         {
-            return;
             if (ID == 0 && SectionID == 0)
             {
                 dx = dy = dz = 0;
@@ -264,6 +258,6 @@ namespace CarnationVariableSectionPart
                     CVSPEditorTool.Instance.SetGizmosLayer(a);
                 }
             }
-        }
+        }*/
     }
 }

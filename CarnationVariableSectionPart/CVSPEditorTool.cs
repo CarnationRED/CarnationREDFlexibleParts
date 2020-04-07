@@ -8,8 +8,8 @@ using System.Reflection;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
-using TDx.TDxInput;
 using UnityEngine.UIElements;
+using System.Text;
 
 namespace CarnationVariableSectionPart
 {
@@ -28,9 +28,11 @@ namespace CarnationVariableSectionPart
         {
             int w = Screen.width, h = Screen.height;
             rect = new Rect(0, 0, w, h * 2 / 100);
-            style = new GUIStyle();
-            style.alignment = TextAnchor.UpperLeft;
-            style.fontSize = h * 5 / 100;
+            style = new GUIStyle
+            {
+                alignment = TextAnchor.UpperLeft,
+                fontSize = h * 5 / 100
+            };
             //new Color (0.0f, 0.0f, 0.5f, 1.0f);
             style.normal.textColor = Color.red;
             style.fontStyle = FontStyle.Bold;
@@ -73,17 +75,17 @@ namespace CarnationVariableSectionPart
 
         private static Camera editorCamera;
         private static float GAME_HIGHLIGHTFACTOR;
-        private static float MinScale = 0.5f;
-        private static float MaxScale = 2f;
-        private static string FileName_Handles = "cvsp_x64.handles";
-        private static string FileName_GUI = "cvsp_x64.gui";
+        private static readonly float MinScale = 0.5f;
+        private static readonly float MaxScale = 2f;
+        private static readonly string FileName_Handles = "cvsp_x64.handles";
+        private static readonly string FileName_GUI = "cvsp_x64.gui";
         private static GameObject prefab;
         private GameObject partSection0, partSection1;
         private GameObject section0, section1;
         public bool mouseDragging = false;
         private float lastTwist;
         private HandleGizmo currentHandle;
-        private ModuleCarnationVariablePart partModule;
+        internal ModuleCarnationVariablePart gizmoEditingPart;
         private bool? sec0FacingUser;
         private bool? sec1FacingUser;
         private static CVSPEditorTool _Instance;
@@ -148,7 +150,7 @@ namespace CarnationVariableSectionPart
             }
         }
 
-        public static bool PreserveParameters { get; private set; }
+        public static bool CopyParameters { get; private set; }
 
         private void Start()
         {
@@ -169,7 +171,7 @@ namespace CarnationVariableSectionPart
         }
 
         //Local symetry string "Local"
-        private static string autoLOC_6001218 = Localizer.GetStringByTag("#autoLOC_6001218");
+        private static readonly string autoLOC_6001218 = Localizer.GetStringByTag("#autoLOC_6001218");
         /// <summary>
         /// 
         /// </summary>
@@ -240,6 +242,15 @@ namespace CarnationVariableSectionPart
             }
         }
 
+        internal void FixZeroSizeBug()
+        {
+            if (CVSPUIManager.Instance)
+            {
+                CVSPUIManager.Instance.Radius0 = CVSPUIManager.Instance.Radius1 = 1f;
+                CVSPUIManager.Instance.Radius2 = CVSPUIManager.Instance.Radius3 = 1f;
+            }
+        }
+
         private void Load()
         {
             if (prefab == null && !assetLoading)
@@ -250,6 +261,8 @@ namespace CarnationVariableSectionPart
                 LoadGUIAssets();
                 assetLoading = false;
                 CreateGizmos();
+                section0.SetActive(false);
+                section1.SetActive(false);
             }
         }
 
@@ -263,12 +276,14 @@ namespace CarnationVariableSectionPart
         IEnumerator LoadGUICoroutine(string path)
         {
             AssetBundle b = AssetBundle.LoadFromFile(path);
-            GameObject original = b.LoadAsset("Canvas") as GameObject;
+            GameObject original = b.LoadAsset<GameObject>("Canvas");
+            SectionPreviewRenderer.renderMat = Instantiate(b.LoadAsset<Material>("RenderShader"));
             EdgeVisualizer.mat =/* new Material*/(b.LoadAsset<Material>("lines"));
             CapsuleRay.getPartModel += (Collider col) =>
             {
                 var part = col.GetComponentInParent<Part>();
                 if (!part) return null;
+
                 Transform model = part.partTransform.Find("model");
                 MeshFilter[] mf = model.GetComponentsInChildren<MeshFilter>();
                 return mf;
@@ -335,22 +350,48 @@ namespace CarnationVariableSectionPart
                 CVSPUIManager.Instance.resources.Instance.RefreshItems(tankTypeAbbrNames);
             CVSPResourceSwitcher.OnGetRealFuelInstalled += () => CVSPConfigs.RealFuel;
 
-            TextureDefinitionSwitcher.DefaultItem = CVSPConfigs.TextureDefinitions.First();
+            TextureDefinitionSwitcher.DefaultItem = CVSPConfigs.TextureSets.First();
             yield return new WaitUntil(() => CVSPUIManager.Instance && CVSPUIManager.Instance.endsTextures && CVSPUIManager.Instance.sideTextures);
-            CVSPUIManager.Instance.endsTextures.RefreshItems(CVSPConfigs.TextureDefinitions.ToArray());
-            CVSPUIManager.Instance.sideTextures.RefreshItems(CVSPConfigs.TextureDefinitions.ToArray());
+            CVSPUIManager.Instance.endsTextures.RefreshItems(CVSPConfigs.TextureSets.ToArray());
+            CVSPUIManager.Instance.sideTextures.RefreshItems(CVSPConfigs.TextureSets.ToArray());
             CVSPUIManager.Instance.endsTextures.OnItemSwitched += EndsTexturesSwitched;
             CVSPUIManager.Instance.sideTextures.OnItemSwitched += SideTexturesSwitched;
 
+            CVSPUIManager.SectionCorners = CVSPConfigs.SectionCornerDefinitions.ToArray();
+            CVSPUIManager.OnSectionCornerChanged += (int id, int target) =>
+                {
+                    if (uiEditingPart)
+                    {
+                        uiEditingPart.uiEditing = true;
+                        uiEditingPart.SetCornerTypes(CVSPConfigs.SectionCornerDefinitions[id], target);
+                    }
+                };
+            CVSPUIManager.GetMaxSize += (out float max, out float length) =>
+              {
+                  max = CVSPConfigs.MaxSize;
+                  length = CVSPConfigs.MaxLength;
+              };
+
             CVSPCreatePartPanel.onDeactivateGizmos += Deactivate;
 
-            if (!EditorToolActivated)
+            CVSPToggleLink.OnToggleLink += (int id, bool link) =>
+              {
+                  if (uiEditingPart)
+                      if (id == 0)
+                          uiEditingPart.LinkSection0 = link;
+                      else
+                          uiEditingPart.LinkSection1 = link;
+              };
+
+            yield return new WaitForSecondsRealtime(0.5f);
+            // yield return new WaitUntil(() => CVSPPresetManager.Instance);
+            CVSPPresetManager.RenderPreview += (SectionInfo info) => SectionPreviewRenderer.Instance.RenderSectionPreview(info, uiEditingPart);
+            if (!EditorToolActivated || !HighLogic.LoadedSceneIsEditor)
                 Instance.gameObject.SetActive(false);
             // Debug.Log("[CRFP] GUI loaded");
-            yield return new WaitForSecondsRealtime(1.0f);
         }
 
-        private void SideTexturesSwitched(TextureDefinition selected)
+        private void SideTexturesSwitched(TextureSetDefinition selected)
         {
             if (uiEditingPart)
             {
@@ -379,7 +420,7 @@ namespace CarnationVariableSectionPart
             }
         }
 
-        private void EndsTexturesSwitched(TextureDefinition selected)
+        private void EndsTexturesSwitched(TextureSetDefinition selected)
         {
             if (uiEditingPart)
             {
@@ -412,9 +453,9 @@ namespace CarnationVariableSectionPart
 
         bool DetermineWhichToModify()
         {
-            if (partModule)
+            if (gizmoEditingPart)
             {
-                uiEditingPart = partModule;
+                uiEditingPart = gizmoEditingPart;
             }
             else
             {
@@ -429,12 +470,10 @@ namespace CarnationVariableSectionPart
             }
             return true;
         }
-        int calledtame = 0;
         private void UI_TextureSelectedOrParamModified(Texture2D t2d, TextureTarget target, string path)
         {
             //uiEditingPart is determined in CVSPUIManager's Update
             if (!uiEditingPart) return;
-            calledtame++;
             //Debug.Log("Called time" + calledtame + " part y:" + uiEditingPart.part.transform.position.y); ;
             uiEditingPart.uiEditing = true;
 
@@ -488,14 +527,14 @@ namespace CarnationVariableSectionPart
                 uiEditingPart.CornerUVCorrection /**/   = ui.CornerUVCorrection;
                 uiEditingPart.RealWorldMapping   /**/   = ui.RealWorldMapping;
                 uiEditingPart.EndsTiledMapping   /**/   = ui.EndsTiledMapping;
-                uiEditingPart.physicless = ui.Physicless;
-                uiEditingPart.optimizeEnds = ui.OptimizeEnds;
+                uiEditingPart.Physicless = ui.Physicless;
+                uiEditingPart.OptimizeEnds = ui.OptimizeEnds;
                 var r = ui.Radius;
                 for (int i = 0; i < r.Length; i++)
                 {
                     uiEditingPart.SetCornerRadius(i, r[i]);
                 }
-                if (partModule)
+                if (gizmoEditingPart)
                     CopyParamsFormPart();
             }
             if (oldTint != uiEditingPart.colorTint || !oldEnds.Equals(uiEditingPart.endTexNames) || !oldSide.Equals(uiEditingPart.sideTexNames) ||
@@ -517,9 +556,10 @@ namespace CarnationVariableSectionPart
         internal void CopyParamsToUI(ModuleCarnationVariablePart cvsp = null)
         {
             if (!cvsp)
-                cvsp = partModule;
+                cvsp = gizmoEditingPart;
             if (!cvsp) return;
             var ui = CVSPUIManager.Instance;
+            if (!ui) return;
             CVSPUIManager.paramTransferedTime = Time.unscaledTime;
             ui.Section0Width      /**/   = cvsp.Section0Width;
             ui.Section0Height     /**/   = cvsp.Section0Height;
@@ -542,14 +582,15 @@ namespace CarnationVariableSectionPart
             ui.TintR              /**/   = cvsp.TintR;
             ui.TintG              /**/   = cvsp.TintG;
             ui.TintB              /**/   = cvsp.TintB;
+            ui.tintR.UpdateRGBBackgrrounds();
             ui.Shininess          /**/   = cvsp.Shininess;
             ui.UseSideTexture     /**/   = cvsp.UseSideTexture;
             ui.UseEndsTexture     /**/   = cvsp.UseEndsTexture;
             ui.CornerUVCorrection /**/   = cvsp.CornerUVCorrection;
             ui.RealWorldMapping   /**/   = cvsp.RealWorldMapping;
             ui.EndsTiledMapping   /**/   = cvsp.EndsTiledMapping;
-            ui.Physicless = cvsp.physicless;
-            ui.OptimizeEnds = cvsp.optimizeEnds;
+            ui.Physicless = cvsp.Physicless;
+            ui.OptimizeEnds = cvsp.OptimizeEnds;
 
             string str = cvsp.tankType;
 
@@ -561,7 +602,11 @@ namespace CarnationVariableSectionPart
             var r = new float[8];
             for (int i = 0; i < 8; i++) r[i] = cvsp.GetCornerRadius(i);
             ui.Radius = r;
-            //to-do texture names
+
+            for (int i1 = 0; i1 < cvsp.GetCornerTypes().Length; i1++)
+                CVSPUIManager.Instance.cornerTypes[i1].text = cvsp.GetCornerTypes()[i1].name;
+
+            CVSPToggleLink.Set(cvsp.LinkSection0, cvsp.LinkSection1);
         }
 
 
@@ -570,9 +615,9 @@ namespace CarnationVariableSectionPart
         public void SetGizmosLayer(int l)
         {
             GizmosLayer = l;
-            if (partModule != null)
+            if (gizmoEditingPart != null)
             {
-                var t = partModule.Model.transform;
+                var t = gizmoEditingPart.Model.transform;
                 for (int i = 0; i < t.childCount; i++)
                 {
                     var tt = t.GetChild(i);
@@ -625,7 +670,7 @@ namespace CarnationVariableSectionPart
         {
             if (!EditorToolActivated)
             {
-                foreach (var i in module.part.localRoot.ship.Parts)
+                /*foreach (var i in module.part.localRoot.ship.Parts)
                 {
                     var model = i.partTransform.Find("model");
                     if (model)
@@ -637,13 +682,13 @@ namespace CarnationVariableSectionPart
                                 Debug.Log($"part: {i.name}, col: {col.gameObject.name}, acti: {col.enabled} lyr: {col.gameObject.layer}");
                             }
                     }
-                }
+                }*/
 
                 if (lastUIModifiedPart)
                     lastUIModifiedPart.CleanGizmos();
-                lastUIModifiedPart = partModule = module;
-                partModule.OnStartGizmosEdit();
-                if (PreserveParameters) partModule.CorrectTwistAndTilts(oldTwist, oldTilts);
+                lastUIModifiedPart = gizmoEditingPart = module;
+                gizmoEditingPart.OnStartGizmosEdit();
+                if (CopyParameters) gizmoEditingPart.CorrectTwistAndTilts(oldTwist, oldTilts);
                 SetupGizmos();
                 CalcGizmosSize();
 
@@ -651,14 +696,14 @@ namespace CarnationVariableSectionPart
                 EditorToolActivated = true;
                 GameUILocked = false;
                 CopyParamsFormPart();
-                PreserveParameters = false;
+                CopyParameters = false;
                 GAME_HIGHLIGHTFACTOR = GameSettings.PART_HIGHLIGHTER_BRIGHTNESSFACTOR;
                 Highlighting.Highlighter.HighlighterLimit = 0.2f;
                 StopAllCoroutines();
                 StartCoroutine(GizmosToUICoroutine());
 
                 CopyParamsToUI();
-                CVSPUIManager.Instance.SetTexFileNames(ModuleCarnationVariablePart.SplitStringByComma(partModule.endTexNames, 3), ModuleCarnationVariablePart.SplitStringByComma(partModule.sideTexNames, 3));
+                CVSPUIManager.Instance.SetTexFileNames(ModuleCarnationVariablePart.SplitStringByComma(gizmoEditingPart.endTexNames, 3), ModuleCarnationVariablePart.SplitStringByComma(gizmoEditingPart.sideTexNames, 3));
             }
         }
 
@@ -690,9 +735,9 @@ namespace CarnationVariableSectionPart
                 partSection0 = null;
                 partSection1 = null;
                 if (currentHandle) currentHandle.OnRelease();
-                for (int i = 0; i < partModule.Model.transform.childCount; i++)
+                for (int i = 0; i < gizmoEditingPart.Model.transform.childCount; i++)
                 {
-                    var t = partModule.Model.transform.GetChild(i);
+                    var t = gizmoEditingPart.Model.transform.GetChild(i);
                     if (t.name.StartsWith("section"))
                         if (t.name.EndsWith("0node"))
                             while (t.childCount > 0)
@@ -704,12 +749,12 @@ namespace CarnationVariableSectionPart
                         if (section1.transform.childCount == 14)
                             break;
                 }
-                if (partModule) partModule.OnEndGizmoEdit();
-                partModule = null;
+                if (gizmoEditingPart) gizmoEditingPart.OnEndGizmoEdit();
+                gizmoEditingPart = null;
                 StopAllCoroutines();
             }
         }
-        internal static ModuleCarnationVariablePart RaycastCVSP(ModuleCarnationVariablePart c)
+        internal static ModuleCarnationVariablePart RaycastCVSP()
         {
             if (Time.time - LastCastTime > Time.deltaTime)
             {
@@ -728,12 +773,12 @@ namespace CarnationVariableSectionPart
 
                 Ray r;
                 r = EditorCamera.ScreenPointToRay(Input.mousePosition);
-                RaycastHit hit;
-                if (Physics.Raycast(r, out hit, 100f, 1 << ModuleCarnationVariablePart.CVSPEditorLayer))
+                if (Physics.Raycast(r, out RaycastHit hit, 100f, 1 << ModuleCarnationVariablePart.CVSPEditorLayer))
                 {
                     //part是模型的父级(model)的父级
                     //不能用hit.transform，不准确
                     var go = hit.collider.transform.parent.parent;
+                    if (!go) return null;
                     var cvsp = go.GetComponent<ModuleCarnationVariablePart>();
                     return cvsp;
                 }
@@ -748,12 +793,17 @@ namespace CarnationVariableSectionPart
 
         internal static void ActivateWithoutGizmos(ModuleCarnationVariablePart cvsp)
         {
-            if (cvsp && !EditorToolActivated)
+            if (cvsp)
             {
-                Instance.lastUIModifiedPart = Instance.uiEditingPart = cvsp;
-                cvsp.OnStartUIEdit();
+                if (EditorToolActivated)
+                    Activate(cvsp);
+                else
+                {
+                    Instance.lastUIModifiedPart = Instance.uiEditingPart = cvsp;
+                    cvsp.OnStartUIEdit();
 
-                cvsp.StartCoroutine(SetupUI(cvsp));
+                    cvsp.StartCoroutine(SetupUI(cvsp));
+                }
             }
         }
         static IEnumerator SetupUI(ModuleCarnationVariablePart cvsp)
@@ -767,7 +817,6 @@ namespace CarnationVariableSectionPart
             yield return new WaitForEndOfFrame();
             Instance.CopyParamsToUI(cvsp);
             CVSPUIManager.Instance.SetTexFileNames(ModuleCarnationVariablePart.SplitStringByComma(cvsp.endTexNames, 3), ModuleCarnationVariablePart.SplitStringByComma(cvsp.sideTexNames, 3));
-
         }
 
 
@@ -777,16 +826,20 @@ namespace CarnationVariableSectionPart
                 if (EditorToolActivated)
                 {
                     Instance.CopyParamsFormPart();
+                    var old = Instance.gizmoEditingPart;
                     Instance.Deactivate();
-                    if (cvsp != Instance.partModule)
+                    if (cvsp != Instance.gizmoEditingPart)
                     {
-                        PreserveParameters = Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.RightControl);
+                        CopyParameters = Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.RightControl);
                         //按下左Ctrl则复制参数
-                        if (PreserveParameters)
+                        if (CopyParameters)
                         {
                             oldTwist = cvsp.Twist;
                             oldTilts = new Vector2(cvsp.Tilt0, cvsp.Tilt1);
                             CopyParamsTo(cvsp);
+                            var linkedNode = ModuleCarnationVariablePart.LinkedSectionID(cvsp, old);
+                            if (linkedNode >= 0) cvsp.LinkSections(linkedNode);
+                            Instance.CopyParamsToUI(cvsp);
                         }
                         //参数复制后，再启动编辑
                         Instance.Activate_(cvsp);
@@ -798,24 +851,24 @@ namespace CarnationVariableSectionPart
 
         private void CopyParamsFormPart()
         {
-            Twist = partModule.Twist;
-            Tilt0 = partModule.Tilt0;
-            Tilt1 = partModule.Tilt1;
-            Raise = partModule.Raise;
-            Run = partModule.Run;
-            Length = partModule.Length;
-            Section0Height = partModule.Section0Height;
-            Section0Width = partModule.Section0Width;
-            Section1Height = partModule.Section1Height;
-            Section1Width = partModule.Section1Width;
-            CornerRadius[0] = partModule.Section0Radius.x;
-            CornerRadius[1] = partModule.Section0Radius.y;
-            CornerRadius[2] = partModule.Section0Radius.z;
-            CornerRadius[3] = partModule.Section0Radius.w;
-            CornerRadius[4] = partModule.Section1Radius.x;
-            CornerRadius[5] = partModule.Section1Radius.y;
-            CornerRadius[6] = partModule.Section1Radius.z;
-            CornerRadius[7] = partModule.Section1Radius.w;
+            Twist = gizmoEditingPart.Twist;
+            Tilt0 = gizmoEditingPart.Tilt0;
+            Tilt1 = gizmoEditingPart.Tilt1;
+            Raise = gizmoEditingPart.Raise;
+            Run = gizmoEditingPart.Run;
+            Length = gizmoEditingPart.Length;
+            Section0Height = gizmoEditingPart.Section0Height;
+            Section0Width = gizmoEditingPart.Section0Width;
+            Section1Height = gizmoEditingPart.Section1Height;
+            Section1Width = gizmoEditingPart.Section1Width;
+            CornerRadius[0] = gizmoEditingPart.Section0Radius.x;
+            CornerRadius[1] = gizmoEditingPart.Section0Radius.y;
+            CornerRadius[2] = gizmoEditingPart.Section0Radius.z;
+            CornerRadius[3] = gizmoEditingPart.Section0Radius.w;
+            CornerRadius[4] = gizmoEditingPart.Section1Radius.x;
+            CornerRadius[5] = gizmoEditingPart.Section1Radius.y;
+            CornerRadius[6] = gizmoEditingPart.Section1Radius.z;
+            CornerRadius[7] = gizmoEditingPart.Section1Radius.w;
         }
 
         private static void CopyParamsTo(ModuleCarnationVariablePart cvsp)
@@ -838,6 +891,8 @@ namespace CarnationVariableSectionPart
             cvsp.Section1Radius.y = /**/ CornerRadius[5];
             cvsp.Section1Radius.z = /**/ CornerRadius[6];
             cvsp.Section1Radius.w = /**/ CornerRadius[7];
+
+
             var old = Instance.lastUIModifiedPart;
             cvsp.colorTint          /**/ = (old.colorTint);
             cvsp.Shininess          /**/ = old.Shininess;
@@ -850,15 +905,17 @@ namespace CarnationVariableSectionPart
             cvsp.mappingOptions     /**/ = old.mappingOptions;
             cvsp.uvOffsets          /**/ = (old.uvOffsets);
             cvsp.uvScales           /**/ = (old.uvScales);
-            cvsp.physicless = old.physicless;
-            cvsp.optimizeEnds = old.optimizeEnds;
+            cvsp.Physicless = old.Physicless;
+            cvsp.OptimizeEnds = old.OptimizeEnds;
+
+            cvsp.SectionCorners = old.SectionCorners;
         }
 
-        internal static void OnPartDestroyed()
+/*        internal static void OnPartDestroyed()
         {
-            if (_Instance != null)
-                Instance.Deactivate();
-        }
+         //if (_Instance != null)
+         //    Instance.Deactivate();
+        }*/
         private static float LastCastTime;
         private bool fineTune;
         private static float angleSnap;
@@ -869,9 +926,8 @@ namespace CarnationVariableSectionPart
         private bool requestUIUpdate;
         internal ModuleCarnationVariablePart lastUIModifiedPart;
         internal ModuleCarnationVariablePart uiEditingPart;
-        private Thread updateUIThread;
 
-        private void OnModifierValueChanged(float value0, float value1, int id, int sectionID)
+        private void OnGizmoEdit(float value0, float value1, int id, int sectionID)
         {
             requestUIUpdate = true;
             Vector2 dir;
@@ -909,43 +965,43 @@ namespace CarnationVariableSectionPart
                     }
                     if (sectionID == 0)
                     {
-                        Section0Width = Mathf.Clamp(Section0Width, 0, ModuleCarnationVariablePart.MaxSize);
-                        Section0Height = Mathf.Clamp(Section0Height, 0, ModuleCarnationVariablePart.MaxSize);
-                        partModule.Section0Width = OffsetSnap(Section0Width);
-                        partModule.Section0Height = OffsetSnap(Section0Height);
+                        Section0Width = Mathf.Clamp(Section0Width, 0, CVSPConfigs.MaxSize);
+                        Section0Height = Mathf.Clamp(Section0Height, 0, CVSPConfigs.MaxSize);
+                        gizmoEditingPart.Section0Width = OffsetSnap(Section0Width);
+                        gizmoEditingPart.Section0Height = OffsetSnap(Section0Height);
                     }
                     else
                     {
-                        Section1Width = Mathf.Clamp(Section1Width, 0, ModuleCarnationVariablePart.MaxSize);
-                        Section1Height = Mathf.Clamp(Section1Height, 0, ModuleCarnationVariablePart.MaxSize);
-                        partModule.Section1Width = OffsetSnap(Section1Width);
-                        partModule.Section1Height = OffsetSnap(Section1Height);
+                        Section1Width = Mathf.Clamp(Section1Width, 0, CVSPConfigs.MaxSize);
+                        Section1Height = Mathf.Clamp(Section1Height, 0, CVSPConfigs.MaxSize);
+                        gizmoEditingPart.Section1Width = OffsetSnap(Section1Width);
+                        gizmoEditingPart.Section1Height = OffsetSnap(Section1Height);
                     }
                     break;
                 case 4://Length Modifier
                     Length += sectionID > 0 ? value0 : value0;
-                    Length = Mathf.Clamp(Length, 0, ModuleCarnationVariablePart.MaxSize);
-                    partModule.Length = OffsetSnap(Length);
+                    Length = Mathf.Clamp(Length, 0, CVSPConfigs.MaxLength);
+                    gizmoEditingPart.Length = OffsetSnap(Length);
                     break;
                 case 5://Twist 
                     Twist = lastTwist + (sectionID > 0 ? value0 : value0);
                     Twist = Mathf.Clamp(Twist, -45, 45);
-                    partModule.Twist = AngleSnap(Twist);
+                    gizmoEditingPart.Twist = AngleSnap(Twist);
                     break;
                 case 6://XAndY, Radius modifiers
-                    dir = Quaternion.Euler(0, 0, partModule.scale.z > 0 ? 0 : 90) * new Vector2(-0.707106f, 0.707106f);
+                    dir = Quaternion.Euler(0, 0, gizmoEditingPart.scale.z > 0 ? 0 : 90) * new Vector2(-0.707106f, 0.707106f);
                     targetID = 0;
                     goto IL_3;
                 case 7:
-                    dir = Quaternion.Euler(0, 0, partModule.scale.z > 0 ? 0 : 90) * new Vector2(-0.707106f, -0.707106f);
+                    dir = Quaternion.Euler(0, 0, gizmoEditingPart.scale.z > 0 ? 0 : 90) * new Vector2(-0.707106f, -0.707106f);
                     targetID = 3;
                     goto IL_3;
                 case 8:
-                    dir = Quaternion.Euler(0, 0, partModule.scale.z > 0 ? 0 : 90) * new Vector2(0.707106f, -0.707106f);
+                    dir = Quaternion.Euler(0, 0, gizmoEditingPart.scale.z > 0 ? 0 : 90) * new Vector2(0.707106f, -0.707106f);
                     targetID = 2;
                     goto IL_3;
                 case 9:
-                    dir = Quaternion.Euler(0, 0, partModule.scale.z > 0 ? 0 : 90) * new Vector2(0.707106f, 0.707106f);
+                    dir = Quaternion.Euler(0, 0, gizmoEditingPart.scale.z > 0 ? 0 : 90) * new Vector2(0.707106f, 0.707106f);
                     targetID = 1;
                 IL_3:
                     var modifier = .4f * Vector2.Dot(new Vector2(value0, value1), dir);
@@ -956,7 +1012,7 @@ namespace CarnationVariableSectionPart
                             targetID += 2;
                         targetID += 3;
                     }
-                    if (partModule.scale.z < 0)
+                    if (gizmoEditingPart.scale.z < 0)
                         if ((targetID + sectionID) % 2 == 1)
                             modifier = -modifier;
                     float radius = Mathf.Clamp(CornerRadius[targetID] - modifier, -1, 1);
@@ -964,7 +1020,7 @@ namespace CarnationVariableSectionPart
                     bool applyAll = Input.GetKey(KeyCode.LeftShift);
                     bool applySection = Input.GetKey(KeyCode.LeftControl);
                     bool applyEdge = Input.GetKey(KeyCode.LeftAlt);
-                    partModule.SetCornerRadius(targetID, snappedRadius);
+                    gizmoEditingPart.SetCornerRadius(targetID, snappedRadius);
                     CornerRadius[targetID] = radius;
                     int i = 0, l = 0;
                     if (applyAll)
@@ -985,11 +1041,12 @@ namespace CarnationVariableSectionPart
                     for (; i < l; i++)
                     {
                         CornerRadius[i] = radius;
-                        partModule.SetCornerRadius(i, snappedRadius);
+                        gizmoEditingPart.SetCornerRadius(i, snappedRadius);
                     }
                     break;
             }
         }
+
         private static float OffsetSnap(float val)
         {
             if (GameSettings.VAB_USE_ANGLE_SNAP)
@@ -1004,13 +1061,23 @@ namespace CarnationVariableSectionPart
         }
         private void Update()
         {
+            if (!HighLogic.LoadedSceneIsEditor)
+            {
+                // gameObject.SetActive(false);
+                return;
+            }
+
             fineTune = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
             angleSnap = fineTune ? EditorLogic.fetch.srfAttachAngleSnapFine : EditorLogic.fetch.srfAttachAngleSnap;
             offsetInterval = fineTune ? .125f : .25f;
         }
         void LateUpdate()
         {
-            calledtame = 0;
+            if (!gizmoEditingPart)
+            {
+                Deactivate();
+                return;
+            }
             if (!EditorToolActivated || !partSection0) return;
             var b0 = Vector3.Dot(EditorCamera.transform.forward, partSection0.transform.up) < .1f;
             var b1 = Vector3.Dot(EditorCamera.transform.forward, partSection1.transform.up) < .1f;
@@ -1044,8 +1111,8 @@ namespace CarnationVariableSectionPart
                         if (go.parent.name.StartsWith("section"))
                         {
                             currentHandle = go.GetComponent<HandleGizmo>();
-                            currentHandle.OnClick(hit);
-                            lastTwist = partModule.Twist;
+                            currentHandle.OnClick();
+                            lastTwist = gizmoEditingPart.Twist;
                             mouseDragging = true;
                         }
                     }
@@ -1059,42 +1126,42 @@ namespace CarnationVariableSectionPart
                 else if (Input.GetKey(KeyCode.Keypad1))
                 {
                     Run -= .025f;
-                    Run = Mathf.Clamp(Run, -ModuleCarnationVariablePart.MaxSize, ModuleCarnationVariablePart.MaxSize);
-                    partModule.Run = OffsetSnap(Run);
+                    Run = Mathf.Clamp(Run, -CVSPConfigs.MaxSize, CVSPConfigs.MaxSize);
+                    gizmoEditingPart.Run = OffsetSnap(Run);
                     goto IL_1;
                 }
                 else if (Input.GetKey(KeyCode.Keypad7))
                 {
                     Run += .025f;
-                    Run = Mathf.Clamp(Run, -ModuleCarnationVariablePart.MaxSize, ModuleCarnationVariablePart.MaxSize);
-                    partModule.Run = OffsetSnap(Run);
+                    Run = Mathf.Clamp(Run, -CVSPConfigs.MaxSize, CVSPConfigs.MaxSize);
+                    gizmoEditingPart.Run = OffsetSnap(Run);
                     goto IL_1;
                 }
                 else if (Input.GetKey(KeyCode.Keypad3))
                 {
                     Raise -= .025f;
-                    Raise = Mathf.Clamp(Raise, -ModuleCarnationVariablePart.MaxSize, ModuleCarnationVariablePart.MaxSize);
-                    partModule.Raise = OffsetSnap(Raise);
+                    Raise = Mathf.Clamp(Raise, -CVSPConfigs.MaxSize, CVSPConfigs.MaxSize);
+                    gizmoEditingPart.Raise = OffsetSnap(Raise);
                     goto IL_1;
                 }
                 else if (Input.GetKey(KeyCode.Keypad9))
                 {
                     Raise += .025f;
-                    Raise = Mathf.Clamp(Raise, -ModuleCarnationVariablePart.MaxSize, ModuleCarnationVariablePart.MaxSize);
-                    partModule.Raise = OffsetSnap(Raise);
+                    Raise = Mathf.Clamp(Raise, -CVSPConfigs.MaxSize, CVSPConfigs.MaxSize);
+                    gizmoEditingPart.Raise = OffsetSnap(Raise);
                     goto IL_1;
                 }
                 goto IL_2;
             IL_1:
-                partModule.OnEditorMouseRelease();
+                gizmoEditingPart.OnEditorMouseRelease();
             }
-            else if (mouseDragging || partModule.PartParamModified)
+            else if (mouseDragging || gizmoEditingPart.PartParamModified)
             {
                 CalcGizmosSize();
                 if (Input.GetKeyUp(KeyCode.Mouse0))
                 {
                     mouseDragging = false;
-                    partModule.OnEditorMouseRelease();
+                    gizmoEditingPart.OnEditorMouseRelease();
                     if (currentHandle != null)
                         currentHandle.OnRelease();
                 }
@@ -1125,8 +1192,8 @@ namespace CarnationVariableSectionPart
                 if ((partSection0 == null || partSection1 == null))
                 {
                     //  Debug.Log("[CRFP] Added Editor Gizmos");
-                    partSection0 = partModule.Section0Transform.gameObject;
-                    partSection1 = partModule.Section1Transform.gameObject;
+                    partSection0 = gizmoEditingPart.Section0Transform.gameObject;
+                    partSection1 = gizmoEditingPart.Section1Transform.gameObject;
                     while (0 < section0.transform.childCount)
                     {
                         var t = section0.transform.GetChild(0);
@@ -1147,10 +1214,10 @@ namespace CarnationVariableSectionPart
         {
             float witdth0, witdth1;
             float height1, height0;
-            witdth0 = Mathf.Max(MinScale, partModule.Section0Width);
-            witdth1 = Mathf.Max(MinScale, partModule.Section1Width);
-            height0 = Mathf.Max(MinScale, partModule.Section0Height);
-            height1 = Mathf.Max(MinScale, partModule.Section1Height);
+            witdth0 = Mathf.Max(MinScale, gizmoEditingPart.Section0Width);
+            witdth1 = Mathf.Max(MinScale, gizmoEditingPart.Section1Width);
+            height0 = Mathf.Max(MinScale, gizmoEditingPart.Section0Height);
+            height1 = Mathf.Max(MinScale, gizmoEditingPart.Section1Height);
 
             var scale0 = Mathf.Min(MaxScale, Mathf.Min(witdth0, height0) * .5f);
             var scale1 = Mathf.Min(MaxScale, Mathf.Min(witdth1, height1) * .5f);
@@ -1182,7 +1249,7 @@ namespace CarnationVariableSectionPart
             {
                 Transform transform1 = t.GetChild(i);
                 HandleGizmo handleGizmo = transform1.GetComponent<HandleGizmo>();
-                if (handleGizmo) handleGizmo.OnValueChanged += OnModifierValueChanged;
+                if (handleGizmo) handleGizmo.OnValueChanged += OnGizmoEdit;
             }
         }
         private void RemoveEvents(GameObject g)
@@ -1192,7 +1259,7 @@ namespace CarnationVariableSectionPart
             for (int i = 0; i < t.childCount; i++)
             {
                 HandleGizmo handleGizmo = t.GetChild(i).GetComponent<HandleGizmo>();
-                if (handleGizmo) handleGizmo.OnValueChanged -= OnModifierValueChanged;
+                if (handleGizmo) handleGizmo.OnValueChanged -= OnGizmoEdit;
             }
         }
         private void SpawnCVSP(CVSPPartInfo info)

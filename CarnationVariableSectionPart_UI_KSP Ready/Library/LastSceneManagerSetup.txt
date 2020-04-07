@@ -1,5 +1,0 @@
-sceneSetups:
-- path: Assets/Used for build gui assetbundle.unity
-  isLoaded: 1
-  isActive: 1
-  isSubScene: 0

@@ -1,4 +1,5 @@
-﻿using System;
+﻿using CarnationVariableSectionPart.UI;
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -6,6 +7,8 @@ namespace CarnationVariableSectionPart
 {
     public partial class CVSPMeshBuilder
     {
+
+        #region Hardcore did these
         private static readonly Vector3[] originSectionVerts = {
   new Vector3(   0.0f       , -1.0f      ,    0.0f       ),
   new Vector3(   0.6666666f , -1.0f      ,    -1.0f      ),
@@ -123,11 +126,40 @@ namespace CarnationVariableSectionPart
       54,29,56,
       55,57,29,
       57,56,29};
+        private static readonly int[] SectionTrisForPreview = new int[] {
+      1 ,0 ,2 ,
+      2 ,0 ,3 ,
+      1 ,4 ,0 ,
+      5 ,3 ,0 ,
+      6 ,0 ,4 ,
+      5 ,0 ,7 ,
+      8 ,0 ,6 ,
+      7 ,0 ,9 ,
+      10,0 ,8 ,
+      9 ,0 ,11,
+      12,0 ,10,
+      0 ,13,11,
+      14,0 ,12,
+      0 ,15,13,
+      16,0 ,14,
+      0 ,17,15,
+      16,18,0 ,
+      19,17,0 ,
+      18,20,0 ,
+      0 ,21,19,
+      20,22,0 ,
+      0 ,23,21,
+      22,24,0 ,
+      0 ,25,23,
+      26,0 ,24,
+      25,0 ,27,
+      26,28,0 ,
+      28,27,0 };
 
         /// <summary>
         /// 前后截面上的8个角对应的点id，8个角以边线中部 分界
         /// </summary>
-        private int[][] sectionCorners = { new int[] {  41,43,45,47,49,51,53 }, new int[] { 55,57,56,54,52,50,48 }, new int[] {46,44,42,40,38,36,34 }, new int[] { 32,31,30,33,35,37,39} ,
+        private readonly int[][] sectionCorners = { new int[] {  41,43,45,47,49,51,53 }, new int[] { 55,57,56,54,52,50,48 }, new int[] {46,44,42,40,38,36,34 }, new int[] { 32,31,30,33,35,37,39} ,
                                        new int[] {  19,21,23,25,27,28,26 }, new int[] { 24,22,20,18,16,14,12 }, new int[] {10, 8, 6, 4, 1, 2, 3 }, new int[] {  5, 7, 9,11,13,15,17} };
         /// <summary>
         /// 截面上各边中点的坐标，注意起始脚标和sectionCorners的不一样
@@ -156,22 +188,13 @@ namespace CarnationVariableSectionPart
                                                              new Vector3(  0, 0, -1),
                                                              new Vector3( -1, 0,  0),
                                                              new Vector3(  0, 0,  1)};
+        #endregion
+
         /// <summary>
         /// 每个圆角相对于第一象限内的roundCorner绕Y轴旋转的角度
         /// </summary>
-        private int[] sectionCornersRotation = { 270, 0, 90, 180, 270, 0, 90, 180 };
+        private readonly int[] sectionCornersRotation = { 270, 0, 90, 180, 270, 0, 90, 180 };
 
-        /// <summary>
-        /// 极坐标单位圆上+90°~+0°对应点的直角坐标
-        /// </summary>
-        private static Vector2[] roundCorner = {
-        new Vector2(0f, 1f),
-        new Vector2(0.2588190f, 0.9659258f),
-        new Vector2(0.5f, 0.8660254f),
-        new Vector2(0.7071067f, 0.7071067f),
-        new Vector2(0.8660254f, 0.5f),
-        new Vector2(0.9659258f, 0.2588190f),
-        new Vector2(1f, 0f)};
         public const float PerimeterRound = 1.566314f;
         public const float PerimeterSharp = 2f;
         private Vector3[] sectionVerts;
@@ -180,12 +203,8 @@ namespace CarnationVariableSectionPart
         private Vector2[] sectionUV;
         private int[] sectionTris;
         private int[] bodyTris;
-        //private Vector3[] optimizedVerts;
-        //private Vector3[] optimizedNorms;
-        //private Vector2[] optimizedUV;
-        //private int[]    optimizedTris;
 
-        private CVSPBodyEdge[] bodySides;
+        private readonly CVSPBodyEdge[] bodySides;
         public const int BodySides = 4;
         public float[] RoundRadius { get; set; }
 
@@ -256,8 +275,8 @@ namespace CarnationVariableSectionPart
         }
         private CVSPMeshBuilder()
         {
-            RoundRadius = new float[] { 0, 0, 0, 0, 0, 0, 0, 0 };
-            oldRoundRadius = new float[] { 0, 0, 0, 0, 0, 0, 0, 0 };
+            RoundRadius = new float[8];
+            oldRoundRadius = new float[8];
             var temp = new List<CVSPBodyEdge>(BodySides);
             for (int i = 0; i < BodySides; i++)
                 temp.Add(new CVSPBodyEdge(i));
@@ -321,12 +340,20 @@ namespace CarnationVariableSectionPart
             for (int i = 0; i < bodyTris.Length; i++)
                 bodyTris[i] = triangles[i + sectionTris.Length];
         }
+
+        public void BuildPreviewSectionMesh(float width, float height, SectionCorner corner, Vector4 radius, out int[] triangles, out Vector3[] vertices)
+        {
+            triangles = new int[1];
+            vertices = new Vector3[1];
+
+        }
+
         /// <summary>
         /// 创建截面
         /// </summary>
         /// <param name="cornerID">0~8，角点的编号</param>
         /// <param name="radiusNormalized">0~1的圆角大小</param>
-        private void BuildSectionCorner(int cornerID, float radiusNormalized)
+        private void BuildSectionCorner(int cornerID, float radiusNormalized, SectionCorner sectionCorner)
         {
             //顶点ID
             var corner = sectionCorners[cornerID];
@@ -371,8 +398,8 @@ namespace CarnationVariableSectionPart
             Vector2 center = new Vector2(xx + zx, xz + zz) * (1 - radiusNormalized);
             for (int i = 0; i < corner.Length; i++)
             {
-                sectionVerts[corner[i]].x = center.x + radiusNormalized * (roundCorner[i].x * xx + roundCorner[i].y * zx);
-                sectionVerts[corner[i]].z = center.y + radiusNormalized * (roundCorner[i].x * xz + roundCorner[i].y * zz);
+                sectionVerts[corner[i]].x = center.x + radiusNormalized * (sectionCorner.vertices[i].x * xx + sectionCorner.vertices[i].y * zx);
+                sectionVerts[corner[i]].z = center.y + radiusNormalized * (sectionCorner.vertices[i].x * xz + sectionCorner.vertices[i].y * zz);
             }
         }
         /// <summary>
@@ -533,7 +560,7 @@ namespace CarnationVariableSectionPart
         /// <summary>
         /// 创建侧面
         /// </summary>
-        private void BuildBody(int[] subdivideLevels)
+        private void BuildBody(SectionCorner[] cornerTypes, int[] subdivideLevels)
         {
             float uv1 = 1 + cvsp.SideOffsetU;
             float uv0 = 1 + cvsp.SideOffsetU;
@@ -562,7 +589,7 @@ namespace CarnationVariableSectionPart
                 newSecCorners1[newSecCorners1.Length - 1] = sectionVerts.Length + 4 + ip1p4;
 
                 //U的缩放和偏移在MakeStrip内部实现，V的则在这里调用时就施加了
-                bodySides[i].MakeStrip(newSecVerts, newSecCorners0, newSecCorners1, RoundRadius[i], RoundRadius[ip4], uv0, uv1, out uv0, out uv1, cvsp, subdivideLevels[i], subdivideLevels[ip4], cvsp.SideOffsetV, cvsp.SideScaleV * (cvsp.RealWorldMapping ? cvsp.Length : 1f) + cvsp.SideOffsetV, qTiltRotInverse0, qTiltRotInverse1);
+                bodySides[i].MakeStrip(newSecVerts, newSecCorners0, newSecCorners1, RoundRadius[i], RoundRadius[ip4], uv0, uv1, out uv0, out uv1, cvsp, subdivideLevels[i], subdivideLevels[ip4], cvsp.SideOffsetV, (cvsp.SideScaleV * (cvsp.RealWorldMapping ? cvsp.Length : 1f)) + cvsp.SideOffsetV, qTiltRotInverse0, qTiltRotInverse1, cornerTypes);
                 //设置边线中点法线
                 bodySides[i].SetEndsNorms(midpointNorms[i], midpointNorms[ip1p4], midpointNorms[ip4], midpointNorms[4 + ip1p4], RoundRadius[i], RoundRadius[ip4], cvsp);
                 bodySides[i].MergeSubMesh();
@@ -657,11 +684,11 @@ namespace CarnationVariableSectionPart
         /// <summary>
         /// 删去Mesh中有边长0的三角形，并分配子网格
         /// </summary>
-        /// <param name="separater">两个子网格的三角形索引从separater分开</param>
+        /// <param name="separator">两个子网格的三角形索引从separater分开</param>
         /// <returns>返回优化后模型的三角形索引中，子网格从哪个位置分开</returns>
-        private int Optimize(int separater)
+        private int Optimize(int separator)
         {
-            int result = 0;
+            int result;
             int optimizedInSub0 = 0;
             bool[] toOptimize = new bool[triangles.Length / 3];
             for (int i = 0; i < toOptimize.Length; i++) toOptimize[i] = false;
@@ -671,7 +698,7 @@ namespace CarnationVariableSectionPart
                 {
                     toOptimize[i / 3] = true;
                     optimized++;
-                    if (i < separater) optimizedInSub0 += 3;
+                    if (i < separator) optimizedInSub0 += 3;
                 }
             int[] optimizedTris = new int[triangles.Length - optimized * 3];
             int j = 0;
@@ -716,8 +743,6 @@ namespace CarnationVariableSectionPart
                 }
             for (int i = 0; i < optimizedTris.Length; i++)
                 optimizedTris[i] -= shift[optimizedTris[i]];
-            toOptimize = null;
-            shift = null;
             mesh.Clear();
             mesh.vertices = optimizedVerts;
             mesh.uv = optimizedUV;
@@ -726,13 +751,13 @@ namespace CarnationVariableSectionPart
             mesh.triangles = optimizedTris;
             mesh.subMeshCount = 2;
             //计算出(子网格0的三角形个数*3)作为结果返回
-            result = separater - optimizedInSub0;
-            int[] sub = new int[separater - optimizedInSub0];
+            result = separator - optimizedInSub0;
+            int[] sub = new int[separator - optimizedInSub0];
             for (int i = 0; i < sub.Length; i++)
                 sub[i] = optimizedTris[i];
             mesh.SetTriangles(sub, 0);
-            sub = new int[optimizedTris.Length + optimizedInSub0 - separater];
-            optimizedInSub0 = separater - optimizedInSub0;
+            sub = new int[optimizedTris.Length + optimizedInSub0 - separator];
+            optimizedInSub0 = separator - optimizedInSub0;
             for (int i = 0; i < sub.Length; i++)
                 sub[i] = optimizedTris[i + optimizedInSub0];
             mesh.SetTriangles(sub, 1);
@@ -749,14 +774,19 @@ namespace CarnationVariableSectionPart
             GetNow();
             return now - old;
         }
-        public void Update(Vector4 section0Radius, Vector4 section1Radius, int[] subdivideLevels)
+        public void Update(ModuleCarnationVariablePart c, Vector4 section0Radius, Vector4 section1Radius, SectionCorner[] cornerTypes, int[] subdivideLevels)
         {
+            if (c != cvsp)
+            {
+                FinishBuilding(cvsp);
+                StartBuilding(c.Mf, c);
+            }
             /* if (!BuildingCVSPForFlight)
-             {
-                 GetNow();
-                 BuildingCVSPForFlight = true;
-                 MeshesBuiltForFlight = 0;
-             }*/
+{
+    GetNow();
+    BuildingCVSPForFlight = true;
+    MeshesBuiltForFlight = 0;
+}*/
 
             RoundRadius[0] = section0Radius.x;
             RoundRadius[1] = section0Radius.y;
@@ -771,12 +801,12 @@ namespace CarnationVariableSectionPart
             qSection1InverseRotation = Quaternion.Inverse(qSection1Rotation);
             qSection0Rotation = Quaternion.AngleAxis(cvsp.Tilt0, Vector3.right);
             qSection0InverseRotation = Quaternion.Inverse(qSection0Rotation);
-            for (int i = 0; i < RoundRadius.Length; i++) BuildSectionCorner(i, Mathf.Abs(RoundRadius[i]));
+            for (int i = 0; i < RoundRadius.Length; i++) BuildSectionCorner(i, Mathf.Abs(RoundRadius[i]), cornerTypes[i]);
             for (int i = 0; i < RoundRadius.Length; i++) oldRoundRadius[i] = RoundRadius[i];
             OptimizeSections();
             ModifySections();
             CalculatesForUIDisplay();
-            BuildBody(subdivideLevels);
+            BuildBody(cornerTypes, subdivideLevels);
             CorrectSectionUV();
             MergeSectionAndBody();
             var sepa = sectionTris.Length - DeleteHiddenSection();
@@ -790,7 +820,7 @@ namespace CarnationVariableSectionPart
             {
                 ModuleCarnationVariablePart.UI_Corners[0] = cvsp.transform.localToWorldMatrix.MultiplyPoint3x4(sectionVerts[25]);
                 ModuleCarnationVariablePart.UI_Corners[1] = cvsp.transform.localToWorldMatrix.MultiplyPoint3x4(sectionVerts[18]);
-                ModuleCarnationVariablePart.UI_Corners[2] = cvsp.transform.localToWorldMatrix.MultiplyPoint3x4(sectionVerts[4 ]);
+                ModuleCarnationVariablePart.UI_Corners[2] = cvsp.transform.localToWorldMatrix.MultiplyPoint3x4(sectionVerts[4]);
                 ModuleCarnationVariablePart.UI_Corners[3] = cvsp.transform.localToWorldMatrix.MultiplyPoint3x4(sectionVerts[11]);
                 ModuleCarnationVariablePart.UI_Corners[4] = cvsp.transform.localToWorldMatrix.MultiplyPoint3x4(sectionVerts[47]);
                 ModuleCarnationVariablePart.UI_Corners[5] = cvsp.transform.localToWorldMatrix.MultiplyPoint3x4(sectionVerts[54]);
@@ -798,7 +828,7 @@ namespace CarnationVariableSectionPart
                 ModuleCarnationVariablePart.UI_Corners[7] = cvsp.transform.localToWorldMatrix.MultiplyPoint3x4(sectionVerts[33]);
                 ModuleCarnationVariablePart.UI_Corners_Dir[0] = cvsp.transform.localToWorldMatrix.MultiplyVector(ZeroY(sectionVerts[25]));
                 ModuleCarnationVariablePart.UI_Corners_Dir[1] = cvsp.transform.localToWorldMatrix.MultiplyVector(ZeroY(sectionVerts[18]));
-                ModuleCarnationVariablePart.UI_Corners_Dir[2] = cvsp.transform.localToWorldMatrix.MultiplyVector(ZeroY(sectionVerts[4 ]));
+                ModuleCarnationVariablePart.UI_Corners_Dir[2] = cvsp.transform.localToWorldMatrix.MultiplyVector(ZeroY(sectionVerts[4]));
                 ModuleCarnationVariablePart.UI_Corners_Dir[3] = cvsp.transform.localToWorldMatrix.MultiplyVector(ZeroY(sectionVerts[11]));
                 ModuleCarnationVariablePart.UI_Corners_Dir[4] = cvsp.transform.localToWorldMatrix.MultiplyVector(ZeroY(sectionVerts[47]));
                 ModuleCarnationVariablePart.UI_Corners_Dir[5] = cvsp.transform.localToWorldMatrix.MultiplyVector(ZeroY(sectionVerts[54]));
@@ -811,7 +841,7 @@ namespace CarnationVariableSectionPart
                     //mag>0.35355
                     if (sqr > 0.125f)
                         //max mag: 2.5
-                        ModuleCarnationVariablePart.UI_Corners_Dir[i] = v.normalized * (2f*(.875f - 1 / (sqr + .875f)));
+                        ModuleCarnationVariablePart.UI_Corners_Dir[i] = v.normalized * (2f * (.875f - 1 / (sqr + .875f)));
                 }
             }
         }
@@ -859,7 +889,6 @@ namespace CarnationVariableSectionPart
             Vector2[] newUVs = new Vector2[vertices.Length - countDeleted];
             //j是当前删除掉的点数量
             int j = 0;
-            j = 0;
             //拷贝顶点数组 TODO: 点删减了，三角形索引对应还是老的编号当然超界
             for (int i = 0; i < vertices.Length; i++)
                 if (i >= vertDeleteFlag.Length || !vertDeleteFlag[i])

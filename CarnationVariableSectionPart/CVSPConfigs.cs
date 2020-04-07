@@ -5,6 +5,7 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using UnityEngine;
 
@@ -13,15 +14,19 @@ namespace CarnationVariableSectionPart
     internal class CVSPConfigs
     {
         private static List<TankTypeDefinition> tankDefinitions;
-        private static List<TextureDefinition> textureDefinitions;
+        private static List<TextureSetDefinition> textureSets;
         private static Dictionary<string, float> fuelAmountPerVolume;
-        private static string CRFPConfigPath;
+        private static readonly string CRFPConfigPath;
         private static bool realFuel = false;
         private static bool RFChecked = false;
         private static bool far = false;
         private static bool FARChecked = false;
         internal static double RealFuelVolumeFactor = 765.056629974;
-        private static MethodInfo LoadFromStringArray;
+        private static readonly MethodInfo LoadFromStringArray;
+        private static List<SectionCorner> sectionCornerTypes;
+        private static List<TechLimit> techLimits;
+        private static float maxSize = -1;
+        private static float maxLength = -1;
 
         public static bool RealFuel
         {
@@ -67,42 +72,99 @@ namespace CarnationVariableSectionPart
                 }
             }
         }
+
+        public static float MaxSize
+        {
+            get
+            {
+                if (maxSize < 0f)
+                {
+                    if (techLimits == null)
+                    {
+                        techLimits = LoadTechLimits();
+                        var arr = techLimits.ToArray();
+                        Array.Sort(arr);
+                        techLimits = new List<TechLimit>(arr);
+                    }
+                    if (ResearchAndDevelopment.Instance == null) new Thread(WaitForRnDInit).Start();
+                    int i = 0;
+                    for (; i < techLimits.Count; i++)
+                    {
+                        TechLimit t = techLimits[i];
+                        RDTech.State state = ResearchAndDevelopment.GetTechnologyState(t.level);
+                        if (state != RDTech.State.Available)
+                        {
+                            TechLimit techLimit = techLimits[Mathf.Max(i - 1, 0)];
+                            maxSize = techLimit.maxSize;
+                            maxLength = techLimit.maxLength;
+
+                            if (ModuleCarnationVariablePart.partInfo != null) ModuleCarnationVariablePart.partInfo.TechRequired = techLimit.level;
+                            else ModuleCarnationVariablePart.TechRequired = techLimit.level;
+                            foreach (var p in from p in PartLoader.Instance.loadedParts
+                                              where p.name.StartsWith("CarnationREDFlexible")
+                                              select p)
+                                p.TechRequired = techLimit.level;
+
+                            break;
+                        }
+                    }
+                    if (i == techLimits.Count)
+                    {
+                        TechLimit techLimit = techLimits[Mathf.Max(i - 1, 0)];
+                        maxSize = techLimit.maxSize;
+                        maxLength = techLimit.maxLength;
+                        if (ModuleCarnationVariablePart.partInfo != null) ModuleCarnationVariablePart.partInfo.TechRequired = techLimit.level;
+                    }
+                    maxSize = Mathf.Max(0.625f, maxSize);
+                }
+                return maxSize;
+            }
+        }
+        //internal static event OnTechLimitLoadedHandler OnTechLimitLoaded;
+        //internal delegate void OnTechLimitLoadedHandler();
+        private static void WaitForRnDInit()
+        {
+            while (ResearchAndDevelopment.Instance == null)
+                Thread.Sleep(250);
+            maxSize = -1;
+            _ = MaxSize;
+            //if (HighLogic.LoadedSceneIsEditor && OnTechLimitLoaded != null)
+            //{
+            //    OnTechLimitLoaded.Invoke();
+            //}
+        }
+
+        public static float MaxLength
+        {
+            get
+            {
+                if (maxLength < 0f)
+                {
+                    _ = MaxSize;
+                    maxLength = Mathf.Max(1.25f, maxLength);
+                }
+                return maxLength;
+            }
+        }
         static CVSPConfigs()
         {
             CRFPConfigPath = Assembly.GetAssembly(typeof(CVSPConfigs)).Location;
             CRFPConfigPath = CRFPConfigPath.Remove(CRFPConfigPath.LastIndexOf("Plugins"));
             LoadCRFPSettings();
-            LoadFromStringArray = typeof(ConfigNode).GetMethods(BindingFlags.NonPublic | BindingFlags.Static).FirstOrDefault(q => q.Name == "LoadFromStringArray" && q.GetParameters().Length < 2);
+            //LoadFromStringArray = typeof(ConfigNode).GetMethods(BindingFlags.NonPublic | BindingFlags.Static).FirstOrDefault(q => q.Name == "LoadFromStringArray" && q.GetParameters().Length < 2);
+            GameEvents.onGameSceneSwitchRequested.Add((GameEvents.FromToAction<GameScenes, GameScenes> data) =>
+                {
+                    //OnTechLimitLoaded = null;
+                    maxSize = -1;
+                    _ = MaxSize;
+                });
         }
-
         internal static List<TankTypeDefinition> TankDefinitions
-        {
-            get
-            {
-                if (tankDefinitions == null)
-                {
-                    tankDefinitions = LoadFuelTankDefinitions();
-                    if (tankDefinitions == null)
-                        tankDefinitions = new List<TankTypeDefinition>();
-                }
-
-                return tankDefinitions;
-            }
-        }
-        internal static List<TextureDefinition> TextureDefinitions
-        {
-            get
-            {
-                if (textureDefinitions == null)
-                {
-                    textureDefinitions = LoadTextureDefinitions();
-                    if (textureDefinitions == null)
-                        textureDefinitions = new List<TextureDefinition>();
-                }
-
-                return textureDefinitions;
-            }
-        }
+            => tankDefinitions ?? (tankDefinitions = LoadFuelTankDefinitions() ?? new List<TankTypeDefinition>());
+        internal static List<TextureSetDefinition> TextureSets
+            => textureSets ?? (textureSets = LoadTextureSetsDefinitions() ?? new List<TextureSetDefinition>());
+        internal static List<SectionCorner> SectionCornerDefinitions
+            => sectionCornerTypes ?? (sectionCornerTypes = LoadSectionCornerDefinitions() ?? new List<SectionCorner>());
         internal static Dictionary<string, float> FuelAmountPerVolume
         {
             get
@@ -121,18 +183,10 @@ namespace CarnationVariableSectionPart
 
         internal static void Reload()
         {
-            List<ConfigNode> l = new List<ConfigNode>();
             UrlDir urlDir = new UrlDir(new UrlDir.ConfigDirectory[] { new UrlDir.ConfigDirectory("", "GameData", UrlDir.DirectoryType.GameData) },
                                        new UrlDir.ConfigFileType[] { new UrlDir.ConfigFileType(UrlDir.FileType.Config) });
-            using IEnumerator<UrlDir.UrlConfig> enu = urlDir.GetConfigs("CRFPTankTypeDefinition").GetEnumerator();
-            if (enu == null) return;
-            while (enu.MoveNext())
-            {
-                UrlDir.UrlConfig current = enu.Current;
-                l.Add(current.config);
-            }
-            enu.Dispose();
-            tankDefinitions = LoadFuelTankDefinitions(l.ToArray());
+
+            tankDefinitions = LoadFuelTankDefinitions(GetNodes(urlDir, "CRFPTankTypeDefinition").ToArray());
             if (tankDefinitions == null)
                 tankDefinitions = new List<TankTypeDefinition>();
             var tankTypeAbbrNames = new string[TankDefinitions.Count];
@@ -140,55 +194,50 @@ namespace CarnationVariableSectionPart
                 tankTypeAbbrNames[i] = TankDefinitions[i].abbrName;
             CVSPUIManager.Instance.resources.Instance.RefreshItems(tankTypeAbbrNames);
 
-            l.Clear();
-            using IEnumerator<UrlDir.UrlConfig> enu3 = urlDir.GetConfigs("CRFPTextureDefinition").GetEnumerator();
-            while (enu3.MoveNext())
+            textureSets = LoadTextureSetsDefinitions(GetNodes(urlDir, "CRFPTextureDefinition").ToArray());
+            if (textureSets != null && textureSets.Count > 0)
             {
-                UrlDir.UrlConfig current = enu3.Current;
-                l.Add(current.config);
-            }
-            enu3.Dispose();
-            textureDefinitions = LoadTextureDefinitions(l.ToArray());
-            if (textureDefinitions != null && textureDefinitions.Count > 0)
-            {
-                TextureDefinitionSwitcher.DefaultItem = (textureDefinitions[0]);
-                CVSPUIManager.Instance.sideTextures.RefreshItems(textureDefinitions.ToArray());
-                CVSPUIManager.Instance.endsTextures.RefreshItems(textureDefinitions.ToArray());
+                TextureDefinitionSwitcher.DefaultItem = (textureSets[0]);
+                CVSPUIManager.Instance.sideTextures.RefreshItems(textureSets.ToArray());
+                CVSPUIManager.Instance.endsTextures.RefreshItems(textureSets.ToArray());
             }
 
-            l.Clear();
-            using IEnumerator<UrlDir.UrlConfig> enu1 = urlDir.GetConfigs("CRFPFuelAmountPerVolumeDefinition").GetEnumerator();
-            if (enu1 == null) return;
-            while (enu1.MoveNext())
-            {
-                UrlDir.UrlConfig current = enu1.Current;
-                l.Add(current.config);
-            }
-            enu1.Dispose();
-            LoadAmountPerVolumeDefinitions(l.ToArray()[0]);
+
+            LoadAmountPerVolumeDefinitions(GetNodes(urlDir, "CRFPFuelAmountPerVolumeDefinition").ToArray()[0]);
             if (fuelAmountPerVolume == null)
                 fuelAmountPerVolume = new Dictionary<string, float>();
 
-            l.Clear();
-            using IEnumerator<UrlDir.UrlConfig> enu2 = urlDir.GetConfigs("CRFPSettings").GetEnumerator();
-            if (enu2 == null) return;
-            while (enu2.MoveNext())
-            {
-                UrlDir.UrlConfig current = enu2.Current;
-                l.Add(current.config);
-            }
-            enu2.Dispose();
-            LoadCRFPSettings(l.ToArray()[0]);
+            LoadCRFPSettings(GetNodes(urlDir, "CRFPSettings").ToArray()[0]);
+
+            LoadSectionCornerDefinitions(GetNodes(urlDir, "CRFPSectionCornerDefinitions").ToArray());
+
+            techLimits = LoadTechLimits(GetNodes(urlDir, "CRFPTechLimits").ToArray());
         }
+
+        private static List<ConfigNode> GetNodes(UrlDir urlDir, string TypeName)
+        {
+            List<ConfigNode> l = new List<ConfigNode>();
+            using (IEnumerator<UrlDir.UrlConfig> enu = urlDir.GetConfigs(TypeName).GetEnumerator())
+            {
+                if (enu != null)
+                    while (enu.MoveNext())
+                    {
+                        UrlDir.UrlConfig current = enu.Current;
+                        l.Add(current.config);
+                    }
+            };
+            return l;
+        }
+
         /// <summary>
-        /// Not useable, confignode created by "LoadFromStringArray" or "Load" has always only one node,
+        /// Not useable, confignodes created by "LoadFromStringArray" or "Load" has always only one node,
         /// </summary>
         internal static void ReloadFast()
         {
 
-            if (File.Exists(CRFPConfigPath + "CRFPTankTypeDefinition.cfg"))
+            if (File.Exists(CRFPConfigPath + "Config" + Path.DirectorySeparatorChar + "CRFPTankTypeDefinition.cfg"))
             {
-                StreamReader sr = new StreamReader(CRFPConfigPath + "CRFPTankTypeDefinition.cfg");
+                StreamReader sr = new StreamReader(CRFPConfigPath + "Config" + Path.DirectorySeparatorChar + "CRFPTankTypeDefinition.cfg");
                 if (sr != null)
                 {
                     List<string> l = new List<string>();
@@ -202,8 +251,7 @@ namespace CarnationVariableSectionPart
                     sr.Dispose();
                     if (l.Count > 1)
                     {
-                        ConfigNode cfg = LoadFromStringArray.Invoke(null, new object[] { l.ToArray() }) as ConfigNode;
-                        if (cfg != null)
+                        if (LoadFromStringArray.Invoke(null, new object[] { l.ToArray() }) is ConfigNode cfg)
                         {
                             tankDefinitions = LoadFuelTankDefinitions(new ConfigNode[] { cfg });
                             if (tankDefinitions == null)
@@ -211,14 +259,14 @@ namespace CarnationVariableSectionPart
                             var tankTypeAbbrNames = new string[TankDefinitions.Count];
                             for (int i = 0; i < TankDefinitions.Count; i++)
                                 tankTypeAbbrNames[i] = TankDefinitions[i].abbrName;
-                            CVSPUIManager.Instance.resources.Instance.RefreshItems( tankTypeAbbrNames);
+                            CVSPUIManager.Instance.resources.Instance.RefreshItems(tankTypeAbbrNames);
                         }
                     }
                 }
             }
-            if (File.Exists(CRFPConfigPath + "CRFPFuelAmountPerVolumeDefinition.cfg"))
+            if (File.Exists(CRFPConfigPath + "Config" + Path.DirectorySeparatorChar + "CRFPFuelAmountPerVolumeDefinition.cfg"))
             {
-                ConfigNode cfg = ConfigNode.Load(CRFPConfigPath + "CRFPFuelAmountPerVolumeDefinition.cfg", false);
+                ConfigNode cfg = ConfigNode.Load(CRFPConfigPath + "Config" + Path.DirectorySeparatorChar + "CRFPFuelAmountPerVolumeDefinition.cfg", false);
                 if (cfg != null)
                 {
                     LoadAmountPerVolumeDefinitions(cfg);
@@ -226,9 +274,9 @@ namespace CarnationVariableSectionPart
                         fuelAmountPerVolume = new Dictionary<string, float>();
                 }
             }
-            if (File.Exists(CRFPConfigPath + "CRFPSettings.cfg"))
+            if (File.Exists(CRFPConfigPath + "Config" + Path.DirectorySeparatorChar + "CRFPSettings.cfg"))
             {
-                ConfigNode cfg = ConfigNode.Load(CRFPConfigPath + "CRFPSettings.cfg", false);
+                ConfigNode cfg = ConfigNode.Load(CRFPConfigPath + "Config" + Path.DirectorySeparatorChar + "CRFPSettings.cfg", false);
                 if (cfg != null)
                     LoadCRFPSettings(cfg);
             }
@@ -260,7 +308,7 @@ namespace CarnationVariableSectionPart
                                 resourceRatio.Add(pct);
                             else return null;
                         }
-                        if (!ParseBool(tankType, "dryMassCalcByArea", out var dryMassCalcByArea)) return null;
+                        if (!ParseFloat(tankType, "dryMassCalcCoeff", out var dryMassCalcCoeff)) return null;
                         if (!ParseFloat(tankType, "dryMassPerArea", out var dryMassPerArea)) return null;
                         if (!ParseFloat(tankType, "dryMassPerVolume", out var dryMassPerVolume)) return null;
                         if (!ParseFloat(tankType, "dryCostPerMass", out var dryCostPerMass)) return null;
@@ -270,7 +318,7 @@ namespace CarnationVariableSectionPart
                             partTitle = title,
                             resources = resources,
                             resourceRatio = resourceRatio,
-                            dryMassCalcByArea = dryMassCalcByArea,
+                            dryMassCalcCoeff = dryMassCalcCoeff,
                             dryMassPerArea = dryMassPerArea,
                             dryMassPerVolume = dryMassPerVolume,
                             dryCostPerMass = dryCostPerMass
@@ -334,16 +382,16 @@ namespace CarnationVariableSectionPart
             }
         }
 
-        private static List<TextureDefinition> LoadTextureDefinitions(ConfigNode[] cfg = null)
+        private static List<TextureSetDefinition> LoadTextureSetsDefinitions(ConfigNode[] cfg = null)
         {
             if (cfg == null)
                 cfg = GameDatabase.Instance.GetConfigNodes("CRFPTextureDefinition");
-            List<TextureDefinition> result = new List<TextureDefinition>();
+            List<TextureSetDefinition> result = new List<TextureSetDefinition>();
             foreach (var config in cfg)
                 foreach (var texDefNode in config.GetNodes("TextureDefinition"))
                     if (texDefNode != null)
                     {
-                        var texDef = new TextureDefinition();
+                        var texDef = new TextureSetDefinition();
                         if (!texDefNode.TryGetValue("name", ref texDef.name) ||
                             !texDefNode.TryGetValue("directory", ref texDef.directory) ||
                             !texDefNode.TryGetValue("diffuse", ref texDef.diffuse) ||
@@ -385,12 +433,70 @@ namespace CarnationVariableSectionPart
             return result;
         }
 
+        private static List<SectionCorner> LoadSectionCornerDefinitions(ConfigNode[] cfg = null)
+        {
+            if (cfg == null)
+                cfg = GameDatabase.Instance.GetConfigNodes("CRFPSectionCornerDefinitions");
+            List<SectionCorner> result = new List<SectionCorner>();
+            foreach (var config in cfg)
+                foreach (var secDefNode in config.GetNodes("SectionCorner"))
+                    if (secDefNode != null)
+                    {
+                        var secDef = new SectionCorner
+                        {
+                            vertices = new Vector2[7]
+                        };
+                        if (!secDefNode.TryGetValue("name", ref secDef.name) ||
+                            !secDefNode.TryGetValue("vertex1", ref secDef.vertices[0]) ||
+                            !secDefNode.TryGetValue("vertex2", ref secDef.vertices[1]) ||
+                            !secDefNode.TryGetValue("vertex3", ref secDef.vertices[2]) ||
+                            !secDefNode.TryGetValue("vertex4", ref secDef.vertices[3]) ||
+                            !secDefNode.TryGetValue("vertex5", ref secDef.vertices[4]) ||
+                            !secDefNode.TryGetValue("vertex6", ref secDef.vertices[5]) ||
+                            !secDefNode.TryGetValue("vertex7", ref secDef.vertices[6]) ||
+                            !secDefNode.TryGetValue("cornerPerimeter", ref secDef.cornerPerimeter) ||
+                            !secDefNode.TryGetValue("cornerArea", ref secDef.cornerArea)
+                            )
+                        {
+                            Debug.LogError($"[CRFP] Can't load SectionCornerDefinition {secDefNode.name}");
+                            continue;
+                        }
+                        result.Add(secDef);
+                    }
+
+            return result;
+        }
+
+        private static List<TechLimit> LoadTechLimits(ConfigNode[] cfg = null)
+        {
+            if (cfg == null)
+                cfg = GameDatabase.Instance.GetConfigNodes("CRFPTechLimits");
+            List<TechLimit> result = new List<TechLimit>();
+            foreach (var config in cfg)
+                foreach (var techNode in config.GetNodes("TechLimit"))
+                    if (techNode != null)
+                    {
+                        var tech = new TechLimit();
+                        if (!techNode.TryGetValue("level", ref tech.level) ||
+                            !techNode.TryGetValue("maxSize", ref tech.maxSize) ||
+                            !techNode.TryGetValue("maxLength", ref tech.maxLength)
+                            )
+                        {
+                            Debug.LogError($"[CRFP] Can't load TechLimits {techNode.name}");
+                            continue;
+                        }
+                        result.Add(tech);
+                    }
+
+            return result;
+        }
+
         private static GameDatabase.TextureInfo LoadTextureFromDatabase(string directory, string texname, bool asNormal)
         {
             string path = "CarnationREDFlexiblePart/Texture/" + (directory.Length > 0 ? (directory + '/') : "") + Path.GetFileNameWithoutExtension(texname);
             string extension = Path.GetExtension(texname).Substring(1);
             var tex = GameDatabase.Instance.databaseTexture
-                .FirstOrDefault(q=> q.name.IndexOf(path) >= 0 && q.file.fileExtension.Equals(extension));
+                .FirstOrDefault(q => q.name.IndexOf(path) >= 0 && q.file.fileExtension.Equals(extension));
             if (tex != null)
             {
                 // Idk y but isNormalMap is always false, and I can't stand conversion for every normalmaps, so I don't convert
@@ -449,16 +555,12 @@ namespace CarnationVariableSectionPart
             }
         }
     }
-
-    internal class TankTypeDefinition
+    internal struct TechLimit : IComparable
     {
-        internal string abbrName;
-        internal string partTitle;
-        internal List<string> resources;
-        internal List<float> resourceRatio;
-        internal bool dryMassCalcByArea;
-        internal float dryMassPerArea;
-        internal float dryMassPerVolume;
-        internal float dryCostPerMass;
+        public string level;
+        public float maxSize;
+        public float maxLength;
+
+        public int CompareTo(object obj) => maxSize.CompareTo(((TechLimit)obj).maxSize);
     }
 }
