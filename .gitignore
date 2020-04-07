@@ -3,8 +3,10 @@
 ##
 ## Get latest from https://github.com/github/gitignore/blob/master/VisualStudio.gitignore
 
-/CarnationVariableSectionPart_UI_KSP Ready/Assets/DIDI/
-/Models
+/Main/bin
+/Main/obj
+/UI/bin
+/UI/obj
 
 # User-specific files
 *.rsuser

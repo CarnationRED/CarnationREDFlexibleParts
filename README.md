@@ -1,24 +1,22 @@
 # CRFP-CarnationREDFlexibleParts  
-release version 0.5  
+release version 0.6 
 Licensed under CC BY-SA 4.0
 
 Developed with Unity 2019.2.2f1 and VS Community 2019
   
-## VS Project
-Move folder *CarnationVariableSectionPart_UI* up one level to load main project properly  
-**Main project:**  
-``` 
-CarnationVariableSectionPart.sln  
+**VS Project**
+```
+  CarnationREDFlexibleParts.sln
 ```
 
-**GUI codes:**   
-&nbsp;&nbsp;&nbsp;&nbsp;Add project below to main project
+**GUI**  
+　　Create a Unity project and load:  
 ```
-CarnationVariableSectionPart_UI\C.csproj
+  UI panel.unitypackage
+```   
+　　In "Assets" dropdown click "Build AssetBundle" to export to ***cvsp_x64.gui*** 
+  
+**Gizmo Handles**  
 ```
-
-**GUI creating with Unity:**  
-&nbsp;&nbsp;&nbsp;&nbsp;Using *CarnationVariableSectionPart_UI.dll* built from main project
-```
-CarnationVariableSectionPart_UI_KSP Ready\Assets\Used for build gui assetbundle.unity
+  handle gizmos.unitypackage
 ```
