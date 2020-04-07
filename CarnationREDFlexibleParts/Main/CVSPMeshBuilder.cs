@@ -1,21 +1,4 @@
-using CarnationVariableSectionPart.UI;/*
- * Note:
- * The comments of this file are translated to English by google translate 
- * and human translation. 
- * Thus, translation of a word might be inconsistent sometimes, this 
- * situation has been avoided as much as possible. Here is a table of 
- * frequent words and what they really mean in case you found the comments 
- * are confusing:
- * 
- * Word     ->  What they really mean
- * ==============================================
- * point    ->  vertex (for a mesh)
- * corner   ->  vertex (for a geometry object)
- * face     ->  section
- * fillet   ->  rounded corner
- * 
- * The original comment was written by CarnationRED in Simplified Chinese.
- */
+﻿using CarnationVariableSectionPart.UI;
 using System;
 using System.Collections.Generic;
 using UnityEngine;
@@ -174,16 +157,16 @@ namespace CarnationVariableSectionPart
       28,27,0 };
 
         /// <summary>
-        /// Point ids corresponding to the 8 corners on the front and back sections. The 8 corners are delimited by the middle of the edge.
+        /// 前后截面上的8个角对应的点id，8个角以边线中部 分界
         /// </summary>
         private readonly int[][] sectionCorners = { new int[] {  41,43,45,47,49,51,53 }, new int[] { 55,57,56,54,52,50,48 }, new int[] {46,44,42,40,38,36,34 }, new int[] { 32,31,30,33,35,37,39} ,
                                        new int[] {  19,21,23,25,27,28,26 }, new int[] { 24,22,20,18,16,14,12 }, new int[] {10, 8, 6, 4, 1, 2, 3 }, new int[] {  5, 7, 9,11,13,15,17} };
         /// <summary>
-        /// The coordinates of the midpoints of the sides on the section. Note that the starting footnotes and sectionCorners are different.
+        /// 截面上各边中点的坐标，注意起始脚标和sectionCorners的不一样
         /// </summary>
         private Vector3[] midpoints = originMidpoints.Clone() as Vector3[];
         /// <summary>
-        /// Normals at the midpoint
+        /// 中点上的法线！
         /// </summary>
         private Vector3[] midpointNorms = originMidpointNorms.Clone() as Vector3[];
         private static readonly Vector3[] originMidpoints = {
@@ -208,7 +191,7 @@ namespace CarnationVariableSectionPart
         #endregion
 
         /// <summary>
-        /// The angle round Corner rotated around the Y axis relative to the roundCorner in the first quadrant
+        /// 每个圆角相对于第一象限内的roundCorner绕Y轴旋转的角度
         /// </summary>
         private readonly int[] sectionCornersRotation = { 270, 0, 90, 180, 270, 0, 90, 180 };
 
@@ -282,7 +265,7 @@ namespace CarnationVariableSectionPart
             }
         }
         /// <summary>
-        /// KSP archive does not support array type
+        /// 无奈KSP存档不支持数组类型
         /// </summary>
         /// <param name="hideflag"></param>
         internal void SetHideSections(Vector2 hideflag)
@@ -316,7 +299,7 @@ namespace CarnationVariableSectionPart
         }
         private void MergeSectionAndBody()
         {
-            //Number of vertices
+            //顶点数量
             int count = sectionVerts.Length;
             for (int i = 0; i < BodySides; i++) count += bodySides[i].vertices.Length;
             vertices = new Vector3[count];
@@ -366,13 +349,13 @@ namespace CarnationVariableSectionPart
         }
 
         /// <summary>
-        /// Create Section
+        /// 创建截面
         /// </summary>
-        /// <param name="cornerID">0~8，Number of corner points</param>
-        /// <param name="radiusNormalized">size of rounded corners of 0~1</param>
+        /// <param name="cornerID">0~8，角点的编号</param>
+        /// <param name="radiusNormalized">0~1的圆角大小</param>
         private void BuildSectionCorner(int cornerID, float radiusNormalized, SectionCorner sectionCorner)
         {
-            //Vertex ID
+            //顶点ID
             var corner = sectionCorners[cornerID];
             if (IsZero(radiusNormalized))
             {
@@ -383,7 +366,7 @@ namespace CarnationVariableSectionPart
                 }
                 return;
             }
-            //Rotation matrix
+            //旋转矩阵
             float xx, xz, zz, zx;
             switch (sectionCornersRotation[cornerID])
             {
@@ -420,11 +403,11 @@ namespace CarnationVariableSectionPart
             }
         }
         /// <summary>
-        /// For the case where the fillet is 0, the points on the straight edge on the section are moved to the corner so that these points can be optimized later
+        /// 对于圆角为0的情况，截面上直边的点移动到角部，以便后面优化掉这些点
         /// </summary>
         private void OptimizeSections()
         {
-            //Move the point in the middle of the straight edge to the position that coincides with the corner point
+            //将直边中间的点移动到和角点重合的位置
             for (int i = 0; i < sectionCorners.Length; i++)
                 if (IsZero(RoundRadius[i]))
                 {
@@ -435,11 +418,11 @@ namespace CarnationVariableSectionPart
                 }
         }
         /// <summary>
-        /// Apply section scaling and rotation
+        /// 应用截面的缩放和旋转
         /// </summary>
         private void ModifySections()
         {
-            #region Dealing with the case where the rounded corners no need be scaled with the length and width (the criterion is rounded corner size <0)
+            #region 处理圆角需要不随长宽缩放的情况 （判据为圆角大小<0）
             float aspectRatio0 = cvsp.Section0Width / cvsp.Section0Height;
             float aspectRatio1 = cvsp.Section1Width / cvsp.Section1Height;
             bool widthLarger0 = cvsp.Section0Width > cvsp.Section0Height;
@@ -482,69 +465,69 @@ namespace CarnationVariableSectionPart
                     }
             #endregion
 
-            //Update the position of the center point of the section
+            //更新截面中心点位置
             sectionVerts[section0Center] = cvsp.Section0Transform.localPosition;
             sectionVerts[section1Center] = cvsp.Section1Transform.localPosition;
 
-            #region Apply Scale-> Apply Twist-> Apply Offset
+            #region 应用缩放->应用扭转->应用偏移
             for (int i = 0; i < 8; i++)
             {
                 for (int j = 0; j < sectionCorners[0].Length; j++)
                 {
-                    //Scale section to specified length and width
+                    //缩放截面到指定的长宽
                     var v1 = sectionVerts[sectionCorners[i][j]];
                     v1.x *= (i < 4 ? cvsp.Section0Width : cvsp.Section1Width) / 2f;
                     v1.z *= (i < 4 ? cvsp.Section0Height : cvsp.Section1Height) / 2f;
-                    //Update length direction and position
+                    //更新长度方向位置
                     v1.y = i < 4 ? cvsp.Section0Transform.localPosition.y : cvsp.Section1Transform.localPosition.y;
                     if (i >= 4)
                     {
                         var yTemp = Vector3.up * v1.y;
-                        //First set y to zero to prevent y from affecting the tilt transformation
+                        //先把y置零，以防y影响tilt变换
                         v1 -= yTemp;
-                        //Applied torsion / Tilt: Section 1
+                        //应用扭转/Tilt：截面1
                         v1 = qSection1Rotation * v1;
                         v1 += yTemp;
-                        //Applied run / Raise: Section 1
+                        //应用偏斜：截面1
                         v1.x += cvsp.Run;
                         v1.z += cvsp.Raise;
                     }
                     else
                     {
                         var yTemp = Vector3.up * v1.y;
-                        //First set y to zero to prevent y from affecting the tilt transformation
+                        //先把y置零，以防y影响tilt变换
                         v1 -= yTemp;
-                        //Applied torsion / Tilt: Section 0
+                        //应用Tilt：截面0
                         v1 = qSection0Rotation * v1;
                         v1 += yTemp;
                     }
                     sectionVerts[sectionCorners[i][j]] = v1;
                 }
-                //Scale midpoint of section edge
+                //缩放截面上边线中点
                 var v = VectorCopy(originMidpoints[i]);
-                //Scale section to specified length and width
+                //缩放截面到指定的长宽
                 v.x *= (i < 4 ? cvsp.Section0Width : cvsp.Section1Width) / 2f;
                 v.z *= (i < 4 ? cvsp.Section0Height : cvsp.Section1Height) / 2f;
-                //Update length direction and position
+                //更新长度方向位置
                 v.y = i < 4 ? cvsp.Section0Transform.localPosition.y : cvsp.Section1Transform.localPosition.y;
                 if (i >= 4)
                 {
                     var yTemp = Vector3.up * v.y;
-                    //First set y to zero to prevent y from affecting the tilt transformation
+                    //先把y置零，以防y影响tilt变换
                     v -= yTemp;
-                    //Apply twist to the midpoint of the edge on section 1
+                    //对截面1上的边线中点应用扭转
                     v = qSection1Rotation * v;
                     v += yTemp;
-                    //Apply run and raise to the midpoint of the edge on section 1
+                    //应用偏斜：截面1上的边线中点
                     v.x += cvsp.Run;
                     v.z += cvsp.Raise;
                 }
                 else
                 {
                     var yTemp = Vector3.up * v.y;
-                    //First set y to zero to prevent y from affecting the tilt transformation
+                    //先把y置零，以防y影响tilt变换
                     v -= yTemp;
-                    //Applied Tilt: Section 0
+                    //应用Tilt：截面0
                     v = qSection0Rotation * v;
                     v += yTemp;
                 }
@@ -552,10 +535,10 @@ namespace CarnationVariableSectionPart
             }
             #endregion
 
-            #region Seam normal calculation
+            #region 接缝法线计算
             for (int i = 0; i < 8; i++)
             {
-                //Calculate the normal of the midpoint of the edge
+                //计算边线中点的法线
                 Vector3 v1, v2;
                 if (i >= 4)
                 {
@@ -567,23 +550,22 @@ namespace CarnationVariableSectionPart
                     v1 = originMidpointNorms[(i + 3) % 4];
                     v2 = midpoints[i + 4] - midpoints[i];
                 }
-                //Cross multiplication to gry the normal vector of the midpoint of the edge
+                //叉乘获得边线中点法向量
                 midpointNorms[i] = Vector3.Cross(v2, v1).normalized;
-                //Apply torsion to the midpoint normal of the edge on section 1
+                //对截面1上的边线中点法线应用扭转
                 if (i >= 4) midpointNorms[i] = qSection1Rotation * midpointNorms[i];
             }
             #endregion
         }
         /// <summary>
-        /// Create Side
+        /// 创建侧面
         /// </summary>
         private void BuildBody(SectionCorner[] cornerTypes, int[] subdivideLevels)
         {
             float uv1 = 1 + cvsp.SideOffsetU;
             float uv0 = 1 + cvsp.SideOffsetU;
             Vector3[] newSecVerts = new Vector3[sectionVerts.Length + midpoints.Length];
-            // Use sectionVerts can only generate faces near edges, use midpoints and other information 
-            // to build the remaining faces, and fill in the holes
+            //用sectionVerts只能生成棱附近的面，用midpoints等信息来构建余下的面，补齐空洞
             sectionVerts.CopyTo(newSecVerts, 0);
             for (int i = 0; i < midpoints.Length; i++)
                 newSecVerts[i + sectionVerts.Length] = midpoints[i];
@@ -606,9 +588,9 @@ namespace CarnationVariableSectionPart
                 newSecCorners1[0] = sectionVerts.Length + ip4;
                 newSecCorners1[newSecCorners1.Length - 1] = sectionVerts.Length + 4 + ip1p4;
 
-                //The scaling and offset of U are implemented inside MakeStrip, and V is applied here
+                //U的缩放和偏移在MakeStrip内部实现，V的则在这里调用时就施加了
                 bodySides[i].MakeStrip(newSecVerts, newSecCorners0, newSecCorners1, RoundRadius[i], RoundRadius[ip4], uv0, uv1, out uv0, out uv1, cvsp, subdivideLevels[i], subdivideLevels[ip4], cvsp.SideOffsetV, (cvsp.SideScaleV * (cvsp.RealWorldMapping ? cvsp.Length : 1f)) + cvsp.SideOffsetV, qTiltRotInverse0, qTiltRotInverse1, cornerTypes);
-                //Set the midpoint normal of the edge
+                //设置边线中点法线
                 bodySides[i].SetEndsNorms(midpointNorms[i], midpointNorms[ip1p4], midpointNorms[ip4], midpointNorms[4 + ip1p4], RoundRadius[i], RoundRadius[ip4], cvsp);
                 bodySides[i].MergeSubMesh();
             }
@@ -625,7 +607,7 @@ namespace CarnationVariableSectionPart
             }
         }
         /// <summary>
-        /// Update the uv of the section vertex
+        /// 更新截面顶点的uv
         /// </summary>
         private void CorrectSectionUV()
         {
@@ -633,10 +615,10 @@ namespace CarnationVariableSectionPart
             sectionUV[29] = new Vector2(.5f * cvsp.EndScaleU + cvsp.EndOffsetU, .5f * cvsp.EndScaleV + cvsp.EndOffsetV);
             var widthGreater0 = cvsp.Section0Width > cvsp.Section0Height;
             var widthGreater1 = cvsp.Section1Width > cvsp.Section1Height;
-            //Correction applied to Tilt deformation
+            //对Tilt变形应用的矫正
             var zScale0 = Mathf.Cos(cvsp.Tilt0 * Mathf.Deg2Rad);
             var zScale1 = Mathf.Cos(cvsp.Tilt1 * Mathf.Deg2Rad);
-            //Skip calculation of invisible sections
+            //跳过不可见的截面的计算
             int start = isSectionVisible[0] ? 0 : (isSectionVisible[1] ? 4 : 8);
             int end = isSectionVisible[1] ? 8 : 4;
             for (; start < end; start++)
@@ -700,10 +682,10 @@ namespace CarnationVariableSectionPart
             }
         }
         /// <summary>
-        /// Delete the triangle with side length 0 in Mesh and assign sub-mesh
+        /// 删去Mesh中有边长0的三角形，并分配子网格
         /// </summary>
-        /// <param name="separator">The triangle indexes of the two sub-grids are separated from the separater</param>
-        /// <returns>Returns the position where the sub-grid separated in the triangle index of the optimized model</returns>
+        /// <param name="separator">两个子网格的三角形索引从separater分开</param>
+        /// <returns>返回优化后模型的三角形索引中，子网格从哪个位置分开</returns>
         private int Optimize(int separator)
         {
             int result;
@@ -744,7 +726,7 @@ namespace CarnationVariableSectionPart
                 if (i + 1 < toOptimize.Length)
                     shift[i + 1] = optimized;
             }
-            //Remove triangle with one side length 0 and keep other intact
+            //剔除有一条边边长为0的三角形，保持其它intact
             Vector3[] optimizedVerts = new Vector3[vertices.Length - optimized];
             Vector3[] optimizedNorms = new Vector3[optimizedVerts.Length];
             Vector4[] optimizedTangents = new Vector4[optimizedVerts.Length];
@@ -768,7 +750,7 @@ namespace CarnationVariableSectionPart
             mesh.tangents = optimizedTangents;
             mesh.triangles = optimizedTris;
             mesh.subMeshCount = 2;
-            //Calculate (the number of triangles in subgrid0 * 3) and return as the result
+            //计算出(子网格0的三角形个数*3)作为结果返回
             result = separator - optimizedInSub0;
             int[] sub = new int[separator - optimizedInSub0];
             for (int i = 0; i < sub.Length; i++)
@@ -814,7 +796,7 @@ namespace CarnationVariableSectionPart
             RoundRadius[5] = section1Radius.y;
             RoundRadius[6] = section1Radius.z;
             RoundRadius[7] = section1Radius.w;
-            //The quaternion of twisted and tilted Tilt represents the rotation of section 1
+            //扭转Twist和倾斜Tilt的四元数，代表了截面1的旋转
             qSection1Rotation = Quaternion.AngleAxis(cvsp.Twist, Vector3.up) * Quaternion.AngleAxis(cvsp.Tilt1, Vector3.right);
             qSection1InverseRotation = Quaternion.Inverse(qSection1Rotation);
             qSection0Rotation = Quaternion.AngleAxis(cvsp.Tilt0, Vector3.right);
@@ -874,7 +856,7 @@ namespace CarnationVariableSectionPart
                     deleteStart = sectionTris.Length / 2;
             else
                 deleteStart = 0;
-            //only half will be deleted unless they are all invisible
+            //除非都不可见，不然只删去一半
             int deleteEnd = deleteStart + (!isSectionVisible[0] && !isSectionVisible[1] ? sectionTris.Length : sectionTris.Length / 2);
             int trisDeleted = deleteEnd - deleteStart;
             int countDeleted;
@@ -883,35 +865,35 @@ namespace CarnationVariableSectionPart
             for (int i = deleteEnd; i < triangles.Length; i++)
                 triangles[i] -= countDeleted;
             int[] newTris = new int[triangles.Length - trisDeleted];
-            //Copy triangle array to new array
+            //拷贝三角形数组到新数组
             for (int i = 0; i < deleteStart; i++)
                 newTris[i] = triangles[i];
             for (int i = deleteEnd; i < triangles.Length; i++)
                 newTris[i - trisDeleted] = triangles[i];
-            //Mark whether to delete vertices
+            //标记是否删除顶点
             bool[] vertDeleteFlag = new bool[sectionVerts.Length];
             for (int i = 0; i < vertDeleteFlag.Length; vertDeleteFlag[i++] = false) ;
-            //Mark the vertices of the deleted triangle
+            //标记被删除三角形的顶点
             for (int i = deleteStart; i < deleteEnd; i++)
             {
                 vertDeleteFlag[triangles[i]] = true;
             }
-            //Count the number of deleted vertices in sectionVerts.Length
+            //统计在sectionVerts.Length内的被删除顶点数
             countDeleted = 0;
             for (int i = 0; i < vertDeleteFlag.Length; i++)
                 if (vertDeleteFlag[i]) countDeleted++;
-            //New vertex array
+            //新顶点数组
             Vector3[] newVerts = new Vector3[vertices.Length - countDeleted];
             Vector3[] newNorms = new Vector3[vertices.Length - countDeleted];
             Vector3[] newTagts = new Vector3[vertices.Length - countDeleted];
             Vector2[] newUVs = new Vector2[vertices.Length - countDeleted];
-            //j is the number of points currently deleted
+            //j是当前删除掉的点数量
             int j = 0;
-            //Copy the vertex array
+            //拷贝顶点数组 TODO: 点删减了，三角形索引对应还是老的编号当然超界
             for (int i = 0; i < vertices.Length; i++)
                 if (i >= vertDeleteFlag.Length || !vertDeleteFlag[i])
                 {
-                    //Old index-delete index = new index
+                    //老编号-删除数量=新编号
                     newVerts[i - j] = vertices[i];
                     newNorms[i - j] = normals[i];
                     newTagts[i - j] = tangents[i];
@@ -971,7 +953,7 @@ namespace CarnationVariableSectionPart
                 normals[i].Normalize();
         }
         /// <summary>
-        /// Take the tangent as the positive U direction
+        /// 取切线为U正方向
         /// </summary>
         internal static void RecalculateTangents(Vector3[] verts, Vector2[] uvs, int[] tris, ref Vector3[] tangents)
         {
