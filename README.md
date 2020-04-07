@@ -16,7 +16,7 @@ Developed with Unity 2019.2.2f1 and VS Community 2019
 ```   
 　　In "Assets" dropdown click "Build AssetBundle" to export to ***cvsp_x64.gui*** 
   
-**Gizmo Handles**  
+**Handle Gizmos**  
 ```
   handle gizmos.unitypackage
 ```
