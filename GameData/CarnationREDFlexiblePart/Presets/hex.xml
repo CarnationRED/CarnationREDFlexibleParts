@@ -1,0 +1,13 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<SectionInfo name="hex">
+  <width>1.732</width>
+  <height>1</height>
+  <radius_lower__left>-1</radius_lower__left>
+  <radius_lower_right>-1</radius_lower_right>
+  <radius_upper__left>-1</radius_upper__left>
+  <radius_upper_right>-1</radius_upper_right>
+  <corner_type1>chamfer</corner_type1>
+  <corner_type2>chamfer</corner_type2>
+  <corner_type3>chamfer</corner_type3>
+  <corner_type4>chamfer</corner_type4>
+</SectionInfo>
