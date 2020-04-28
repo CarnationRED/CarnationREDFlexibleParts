@@ -10,7 +10,7 @@ Developed with Unity 2019.2.2f1 and VS Community 2019
 ```
 
 **GUI**  
-　　Create a Unity project and load:  
+　　Create an Unity project and load:  
 ```
   UI panel.unitypackage
 ```   
