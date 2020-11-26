@@ -19,26 +19,44 @@ namespace CarnationVariableSectionPart
     /// <summary>
     /// 使用：
     ///     1.对着零件按P开启编辑，拖动手柄改变形状和扭转
+    ///     1. Press P to open editing on the part, drag the handle to change the shape and twist
     ///     2.按Ctrl+P，可以复制当前编辑的零件形状到鼠标指着的另外一个零件
+    ///     2. Press Ctrl+P to copy the shape of the currently edited part to another part pointed by the mouse
     ///     3.小键盘1379可以对零件进行偏移
+    ///     3. The small keyboard 1379 can offset parts
     /// TO-DOs:
     ///     1.done 动态计算油箱本体重量
+    ///     1.done dynamically calculate the weight of the fuel tank body
     ///     2.done 计算更新重心位置
+    ///     2.done calculate and update the center of gravity position
     ///     3.done 打开编辑手柄后，显示一个面板可以拖动、输入尺寸，提供接口来更换贴图、切换参数
+    ///     3.done After opening the edit handle, a panel is displayed to drag and enter the size, and provides an interface to change the texture and switch parameters
     ///     4.done 更新模型切线数据、添加支持法线贴图，烘焙了新默认贴图
+    ///     4.done Update model tangent data, add support for normal map, baked new default map
     ///     5.异步生成模型
+    ///     5. Generate model asynchronously
     ///     6.done 计算更新干重、干Cost
+    ///     6.done calculate and update dry weight and dry cost
     ///     7.done 切换油箱类型
+    ///     7.done switch fuel tank type
     ///     8.done 曲面细分（是不是有点高大上，手动滑稽）
+    ///     8.done surface subdivision (is it a bit tall, manual funny)
     ///     9.堆叠起来的两个零件，截面形状编辑可以联动
+    ///     9. For two stacked parts, the section shape editing can be linked
     ///     10.（有可能会做的）零件接缝处的法线统一化，这个有时候可以提高观感
+    ///     10. (It may be done) The normals at the joints of the parts are unified. This can sometimes improve the look and feel
     ///     11.（也可能会做的）提供形状不一样的圆角，现在只有纯圆的，按照目前算法添加新形状不是特别难
+    ///     11. (May also do) Provide rounded corners with different shapes, now only pure circles, adding new shapes according to the current algorithm is not particularly difficult
     ///     12.切分零件、合并零件，且不改变形状
+    ///     12. Divide parts, merge parts without changing the shape
     ///     13.done RO\RF
     ///     14.done 隐藏堆叠部件的相邻Mesh
+    ///     14.done hides adjacent Mesh of stacked parts
     /// BUG:
     ///     1.closed 体积和燃料对应好像有点问题
+    ///     1.closed There seems to be a problem with the volume and fuel correspondence
     ///     2.closed 形状比较夸张时，UV和法线比较怪（没有细分就是这样的）
+    ///     2. When the closed shape is exaggerated, the UV and normal are weird (this is the case without subdivision)
     /// </summary>
     public class ModuleCarnationVariablePart : PartModule, IPartCostModifier, IPartMassModifier, IPartSizeModifier, IParameterMonitor
     {
